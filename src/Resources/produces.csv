@@ -1,0 +1,25 @@
+fname;flastnam;pname;amount;year
+Cevdet;Sututan;Grain;140000;2015
+Cevdet;Sututan;Grain;120000;2016
+Cevdet;Sututan;Soy bean;50000;2015
+Halime;Sututan;Grain;20000;2015
+Muhammer;Kanzuk;Soy bean;340000;2015
+Gulden;Kanzuk;Grain;10000;2017
+Gulden;Kanzuk;Soy bean;50000;2017
+Murat;Kanzuk;Grain;100000;2017
+Umit;Gercek;Grain;30000;2017
+Umit;Gercek;Soy bean;50000;2016
+Umit;Gercek;Rice;30000;2016
+Umit;Gercek;Corn;50000;2016
+Hanedan;Gercek;Grain;200000;2016
+Hanedan;Gercek;Soy bean;50000;2015
+Ismet;Suadiyeli;Rice;50000;2014
+Deniz;Suadiyeli;Corn;220000;2014
+Deniz;Suadiyeli;Soy bean;30000;2014
+Behcet;Karci;Rice;50000;2014
+Ali;Eniseler;Rice;10000;2014
+Ali;Eniseler;Corn;50000;2014
+Veyda;Dikmen;Grain;230000;2014
+Veyda;Dikmen;Soy bean;10000;2014
+Veyda;Dikmen;Rice;50000;2014
+Veyda;Dikmen;Corn;200000;2014
