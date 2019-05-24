@@ -6,7 +6,7 @@ import java.util.Scanner;
 public class Session {
     private final int port;
     private final String ip, user, password, dbName;
-    private static int farmerCount, marketCount, producesCount, productsCount,  registersCount = 0;
+    private int farmerCount, marketCount, producesCount, productsCount, registersCount = 0;
 
     Connection connection;
 
@@ -18,6 +18,7 @@ public class Session {
         this.password = password;
 
         connectToServer();
+        getCurrentRowCounts();
     }
 
     private void connectToServer() {
@@ -31,15 +32,29 @@ public class Session {
         }
     }
 
-    public void printColumnInTable(String table, String column) throws SQLException {
-        Statement statement = this.connection.createStatement();
-        String query = "SELECT " + column + " FROM " + table + " " + table.charAt(0);
-        ResultSet resultSet = statement.executeQuery(query);
-
-        while (resultSet.next())
-            System.out.println(resultSet.getString(1)); // get the only column that exists
+    private void getCurrentRowCounts() {
+        farmerCount = getNumberOfRowsInTable("Farmer");
+        marketCount = getNumberOfRowsInTable("Market");
+        producesCount = getNumberOfRowsInTable("Produces");
+        productsCount = getNumberOfRowsInTable("Product");
+        registersCount = getNumberOfRowsInTable("Registers");
     }
 
+    private int getNumberOfRowsInTable(String table) {
+        try {
+            Statement statement = connection.createStatement();
+            ResultSet rs = statement.executeQuery("SELECT COUNT(*) "
+                    + "FROM " + table);
+
+            rs.next();
+            int rowCount = rs.getInt(1);
+            return rowCount;
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+
+        return 0;
+    }
 
     public void insertFarmersFromFile(File data) {
         try {
@@ -51,7 +66,8 @@ public class Session {
 
             while (scanner.hasNextLine()) {
                 String line = scanner.nextLine();
-                int nextId = Session.farmerCount + 1;
+                farmerCount += 1;
+                int nextId = farmerCount;
 
                 if (!line.equals("")) {
                     String[] entries = line.split(";");
@@ -71,7 +87,6 @@ public class Session {
                     }
 
                     if (entries[6].contains("|")) {
-                        emails = new String[entries[6].split("\\|").length];
                         emails = entries[6].split("\\|");
                     } else {
                         emails = new String[1];
@@ -79,8 +94,8 @@ public class Session {
                     }
 
                     String sql = "INSERT INTO Farmer "
-                            + "VALUES " + "(" + nextId + ", " + "'"  + name +
-                            "'" + "," + "'" + lastName + "'"+ ")";
+                            + "VALUES " + "(" + nextId + ", " + "'" + name +
+                            "'" + "," + "'" + lastName + "'" + ")";
                     statement.executeUpdate(sql);
 
                     for (String phone : phones) {
@@ -102,9 +117,7 @@ public class Session {
                     statement.executeUpdate("INSERT INTO FarmerAddressCity "
                             + "VALUES " + "(" + nextId + "," + "'"
                             + city + "'" + "," + "'" + address + "'" + ")");
-
                 }
-                farmerCount += 1;
             }
         } catch (FileNotFoundException e) {
             System.out.println("File not found!");
@@ -123,10 +136,86 @@ public class Session {
     }
 
     public void insertMarketsFromFile(File data) {
+        try {
+            Scanner scanner = new Scanner(data);
+            Statement statement = this.connection.createStatement();
 
+            if (scanner.hasNext())  // skip the column headers
+                scanner.next();
+
+            while (scanner.hasNextLine()) {
+                String line = scanner.nextLine();
+                marketCount += 1;
+                int nextId = marketCount;
+
+                if (!line.equals("")) {
+                    String[] entries = line.split(";");
+                    String name = entries[0];
+                    String address = entries[1];
+                    String zipcode = entries[2];
+                    String city = entries[3];
+                    String[] phones;
+                    int budget = Integer.parseInt(entries[5]);
+
+                    if (entries[4].contains("|")) {
+                        phones = new String[entries[5].split("\\|").length];
+                        phones = entries[4].split("\\|");
+                    } else {
+                        phones = new String[1];
+                        phones[0] = entries[4];
+                    }
+
+                    String sql = "INSERT INTO Market "
+                            + "VALUES " + "(" + nextId + ", " + "'" + name +
+                            "'" + "," + "'" + address + "'" + "," + budget + ")";
+                    statement.executeUpdate(sql);
+
+                    // Insert address, city
+                    statement.executeUpdate("INSERT INTO MarketAddressZipcode "
+                            + "VALUES " + "(" + nextId + "," + "'" + address + "'" + ","
+                            + "'" + zipcode + "'" + ")");
+
+                    statement.executeUpdate("INSERT INTO MarketAddressCity "
+                            + "VALUES " + "(" + nextId + "," + "'"
+                            + city + "'" + "," + "'" + address + "'" + ")");
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
     public void insertRegistersFromFile(File data) {
 
+    }
+
+    public void insertProducesFromFile(File data) {
+
+    }
+
+    public void showTables() {
+        try {
+            ResultSet rs = null;
+            DatabaseMetaData meta = connection.getMetaData();
+            rs = meta.getTables(null, null, null, new String[]{"TABLE"});
+            int rowCount = 0;
+
+            System.out.println("+-----------------------+");
+            System.out.println("| Tables_in_eciftci        |");
+            System.out.println("+-----------------------+");
+
+            while (rs.next()) {
+                rowCount++;
+                String tableName = rs.getString("TABLE_NAME");
+                System.out.print("| " + tableName);
+                for (int i = 0; i < 25 - tableName.length(); i++)
+                    System.out.print(" ");
+
+                System.out.println("|");
+            }
+            System.out.println("+-----------------------+");
+            System.out.println(rowCount + " rows in set ");
+        } catch (Exception e) {
+        }
     }
 }
