@@ -8,7 +8,7 @@ import java.util.Scanner;
 public class Session {
     private final int port;
     private final String ip, user, password, dbName;
-    private int nextFarmerId, nextMarketId, nextProductId = 0;
+    private int nextFarmerId, nextMarketId, nextProductId,nextTransactionId = 0;
 
     Connection connection;
     Statement statement;
@@ -37,6 +37,7 @@ public class Session {
         nextFarmerId = getNumberOfRowsInTable("Farmer");
         nextMarketId = getNumberOfRowsInTable("Market");
         nextProductId = getNumberOfRowsInTable("Product");
+        nextTransactionId = getNumberOfRowsInTable("Transaction");
     }
 
     private int getNumberOfRowsInTable(String table) throws SQLException {
@@ -131,6 +132,65 @@ public class Session {
     }
 
     public void insertTransactionsFromFile(File data) {
+        try {
+            Scanner scanner = new Scanner(data);
+            Statement statement = this.connection.createStatement();
+
+            if (scanner.hasNext())  // skip the column headers
+                scanner.next();
+
+            while (scanner.hasNextLine()) {
+                String line = scanner.nextLine();
+
+                if (!line.equals("")) {
+                    String[] entries = line.split(";");
+                    String fName = entries[0];
+                    String lastName = entries[1];
+                    String pName = entries[2];
+                    String mName = entries[3];
+                    String mAdress = entries[4];
+                    String amount = entries[5];
+                    String card = entries[6];
+
+                    Statement stateFid = connection.createStatement();
+                    ResultSet rsFid = stateFid.executeQuery("SELECT Farmer.f_id "
+                            + "FROM " + "Farmer, Registers " + "WHERE Farmer.f_name = " + "'" + fName + "'" +
+                            "  AND Farmer.f_last_name = " + "'" + lastName + "'" +
+                            "  AND Farmer.f_id = Registers.f_id");
+
+                    rsFid.next();
+                    int fid = rsFid.getInt(1);
+
+                    Statement statePid = connection.createStatement();
+                    ResultSet rsPid = statePid.executeQuery("SELECT Product.p_id "
+                            + "FROM " + "Product, Registers " + "WHERE Product.p_name = "+"'"+ pName+"'"+
+                            "  AND Product.p_id = Registers.p_id");
+
+                    rsPid.next();
+                    int pid = rsPid.getInt(1);
+
+                    Statement stateMid = connection.createStatement();
+                    ResultSet rsMid = stateMid.executeQuery("SELECT Market.m_id "
+                            + "FROM " + "Market " + "WHERE Market.m_name = "+"'"+ mName+"'"+"  AND Market.address = " + "'" + mAdress + "'");
+
+                    rsMid.next();
+                    int mid = rsMid.getInt(1);
+
+                    this.nextTransactionId+=1;
+
+                    String sql = "INSERT INTO Transaction "
+                            + "VALUES " + "(" + this.nextTransactionId + "," + pid + "," + mid + "," + fid + "," + amount + "," + card + ")";
+                    statement.executeUpdate(sql);
+
+                }
+
+            }
+        } catch (FileNotFoundException e) {
+            System.out.println("File not found!");
+            e.printStackTrace();
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
 
     }
 
@@ -330,7 +390,52 @@ public class Session {
     }
 
     public void insertProducesFromFile(File data) {
+        try {
+            Scanner scanner = new Scanner(data);
+            Statement statement = this.connection.createStatement();
 
+            if (scanner.hasNext())  // skip the column headers
+                scanner.next();
+
+            while (scanner.hasNextLine()) {
+                String line = scanner.nextLine();
+
+                if (!line.equals("")) {
+                    String[] entries = line.split(";");
+                    String fname = entries[0];
+                    String lastName = entries[1];
+                    String pname = entries[2];
+                    String amount = entries[3];
+                    String year = entries[4];
+
+                    Statement stateFid = connection.createStatement();
+                    ResultSet rsFid = stateFid.executeQuery("SELECT Farmer.f_id "
+                            + "FROM " + "Farmer " + "WHERE Farmer.f_name = " + "'" + fname + "'" +"  AND Farmer.f_last_name = " + "'" + lastName + "'");
+
+                    rsFid.next();
+                    int fid = rsFid.getInt(1);
+
+                    Statement statePid = connection.createStatement();
+                    ResultSet rsPid = statePid.executeQuery("SELECT Product.p_id "
+                            + "FROM " + "Product " + "WHERE Product.p_name = "+"'"+ pname+"'");
+
+                    rsPid.next();
+                    int pid = rsPid.getInt(1);
+
+
+                    String sql = "INSERT INTO Produces "
+                            + "VALUES " + "(" + fid + "," + pid + "," + amount + "," + "'"+ year + "'" + ")";
+                    statement.executeUpdate(sql);
+
+                }
+
+            }
+        } catch (FileNotFoundException e) {
+            System.out.println("File not found!");
+            e.printStackTrace();
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
     }
 
     public void showTables() throws SQLException {

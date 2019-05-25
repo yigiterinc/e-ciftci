@@ -18,9 +18,9 @@ public class Main {
             // session.insertFarmersFromFile(farmers);
             // session.insertMarketsFromFile(markets);
             // session.insertProductsFromFile(products);
-            session.insertProducesFromFile(produces);
-            session.insertRegistersFromFile(registers);
-            session.insertTransactionsFromFile(transactions);
+            //session.insertProducesFromFile(produces);
+            //session.insertRegistersFromFile(registers);
+            //session.insertTransactionsFromFile(transactions);
         } catch (Exception e) {
             e.printStackTrace();
         }
