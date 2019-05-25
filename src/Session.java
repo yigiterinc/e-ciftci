@@ -6,11 +6,14 @@ import java.util.Scanner;
 public class Session {
     private final int port;
     private final String ip, user, password, dbName;
-    private int farmerCount, marketCount, producesCount, productsCount, registersCount = 0;
+    private int nextFarmerId, nextMarketId, nextProductId = 0;
 
     Connection connection;
+    Statement statement;
 
-    public Session(String ip, int port, String dbName, String user, String password) {
+    public Session(String ip, int port, String dbName, String user, String password)
+            throws SQLException, ClassNotFoundException {
+
         this.ip = ip;
         this.port = port;
         this.dbName = dbName;
@@ -21,213 +24,213 @@ public class Session {
         getCurrentRowCounts();
     }
 
-    private void connectToServer() {
-        try {
-            Class.forName("com.mysql.cj.jdbc.Driver");
-            String address = "jdbc:mysql://" + ip + ":" + port + "/" + dbName;
-            connection = DriverManager.getConnection(address, user, password);
-        } catch (Exception e) {
-            System.out.println("There was a problem while connecting to server :(");
-            e.printStackTrace();
-        }
+    private void connectToServer() throws ClassNotFoundException, SQLException {
+        Class.forName("com.mysql.cj.jdbc.Driver");
+        String address = "jdbc:mysql://" + ip + ":" + port + "/" + dbName;
+        connection = DriverManager.getConnection(address, user, password);
+        statement = connection.createStatement();
     }
 
-    private void getCurrentRowCounts() {
-        farmerCount = getNumberOfRowsInTable("Farmer");
-        marketCount = getNumberOfRowsInTable("Market");
-        producesCount = getNumberOfRowsInTable("Produces");
-        productsCount = getNumberOfRowsInTable("Product");
-        registersCount = getNumberOfRowsInTable("Registers");
+    private void getCurrentRowCounts() throws SQLException {
+        nextFarmerId = getNumberOfRowsInTable("Farmer");
+        nextMarketId = getNumberOfRowsInTable("Market");
+        nextProductId = getNumberOfRowsInTable("Product");
     }
 
-    private int getNumberOfRowsInTable(String table) {
-        try {
-            Statement statement = connection.createStatement();
-            ResultSet rs = statement.executeQuery("SELECT COUNT(*) "
-                    + "FROM " + table);
+    private int getNumberOfRowsInTable(String table) throws SQLException {
+        ResultSet rs = statement.executeQuery("SELECT COUNT(*) "
+                + "FROM " + table);
 
-            rs.next();
-            int rowCount = rs.getInt(1);
-            return rowCount;
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
-
-        return 0;
+        rs.next();
+        int rowCount = rs.getInt(1);
+        return rowCount;
     }
 
-    public void insertFarmersFromFile(File data) {
-        try {
-            Scanner scanner = new Scanner(data);
-            Statement statement = this.connection.createStatement();
+    public void insertFarmersFromFile(File data) throws SQLException, FileNotFoundException {
+        Scanner scanner = new Scanner(data);
 
-            if (scanner.hasNext())  // skip the column headers
-                scanner.next();
+        if (scanner.hasNext())  // skip the column headers
+            scanner.next();
 
-            while (scanner.hasNextLine()) {
-                String line = scanner.nextLine();
-                farmerCount += 1;
-                int nextId = farmerCount;
+        while (scanner.hasNextLine()) {
+            String line = scanner.nextLine();
 
-                if (!line.equals("")) {
-                    String[] entries = line.split(";");
-                    String name = entries[0];
-                    String lastName = entries[1];
-                    String address = entries[2];
-                    String zipcode = entries[3];
-                    String city = entries[4];
-                    String[] phones, emails;
+            if (!line.equals("")) {
+                String[] entries = line.split(";");
 
-                    if (entries[5].contains("|")) {
-                        phones = new String[entries[5].split("\\|").length];
-                        phones = entries[5].split("\\|");
-                    } else {
-                        phones = new String[1];
-                        phones[0] = entries[5];
-                    }
+                String name = entries[0];
+                String lastName = entries[1];
+                String address = entries[2];
+                String zipcode = entries[3];
+                String city = entries[4];
+                String[] phones, emails;
 
-                    if (entries[6].contains("|")) {
-                        emails = entries[6].split("\\|");
-                    } else {
-                        emails = new String[1];
-                        emails[0] = entries[6];
-                    }
-
-                    String sql = "INSERT INTO Farmer "
-                            + "VALUES " + "(" + nextId + ", " + "'" + name +
-                            "'" + "," + "'" + lastName + "'" + ")";
-                    statement.executeUpdate(sql);
-
-                    for (String phone : phones) {
-                        long phoneNumber = Long.valueOf(phone);
-                        statement.executeUpdate("INSERT INTO FarmerPhoneNumber "
-                                + "VALUES " + "(" + phoneNumber + "," + nextId + ")");
-                    }
-
-                    for (String email : emails) {
-                        statement.executeUpdate("INSERT INTO FarmerEmail "
-                                + "VALUES " + "(" + "'" + email + "'," + nextId + ")");
-                    }
-
-                    // Insert address, zipcode, city
-                    statement.executeUpdate("INSERT INTO FarmerAddressZipcode "
-                            + "VALUES " + "(" + nextId + "," + "'" + address + "'" + ","
-                            + "'" + zipcode + "'" + ")");
-
-                    statement.executeUpdate("INSERT INTO FarmerAddressCity "
-                            + "VALUES " + "(" + nextId + "," + "'"
-                            + city + "'" + "," + "'" + address + "'" + ")");
+                if (entries[5].contains("|")) {
+                    phones = new String[entries[5].split("\\|").length];
+                    phones = entries[5].split("\\|");
+                } else {
+                    phones = new String[1];
+                    phones[0] = entries[5];
                 }
+
+                if (entries[6].contains("|")) {
+                    emails = entries[6].split("\\|");
+                } else {
+                    emails = new String[1];
+                    emails[0] = entries[6];
+                }
+
+                // Execute the insert statements
+                insertFarmer(name, lastName);
+                insertFarmerPhoneNumber(phones);
+                insertFarmerEmail(emails);
+                insertFarmerAddressZipcode(address, zipcode);
+                insertFarmerAddressCity(city, address);
             }
-        } catch (FileNotFoundException e) {
-            System.out.println("File not found!");
-            e.printStackTrace();
-        } catch (SQLException e) {
-            e.printStackTrace();
         }
+    }
+
+
+    private void insertFarmer(String name, String lastName) throws SQLException {
+        this.nextFarmerId += 1;
+
+        String sql = "INSERT INTO Farmer "
+                + "VALUES " + "(" + this.nextFarmerId + ", " + "'" + name +
+                "'" + "," + "'" + lastName + "'" + ")";
+        statement.executeUpdate(sql);
+    }
+
+    private void insertFarmerPhoneNumber(String[] phones) throws SQLException {
+        for (String phone : phones) {
+            long phoneNumber = Long.valueOf(phone);
+            statement.executeUpdate("INSERT INTO FarmerPhoneNumber "
+                    + "VALUES " + "(" + phoneNumber + "," + this.nextFarmerId + ")");
+        }
+    }
+
+    private void insertFarmerEmail(String[] emails) throws SQLException {
+        for (String email : emails) {
+            statement.executeUpdate("INSERT INTO FarmerEmail "
+                    + "VALUES " + "(" + "'" + email + "'," + this.nextFarmerId + ")");
+        }
+    }
+
+    private void insertFarmerAddressZipcode(String address, String zipcode) throws SQLException {
+        statement.executeUpdate("INSERT INTO FarmerAddressZipcode "
+                + "VALUES " + "(" + this.nextFarmerId + "," + "'" + address + "'" + ","
+                + "'" + zipcode + "'" + ")");
+    }
+
+
+    private void insertFarmerAddressCity(String address, String city) throws SQLException {
+        statement.executeUpdate("INSERT INTO FarmerAddressCity "
+                + "VALUES " + "(" + this.nextFarmerId + "," + "'"
+                + city + "'" + "," + "'" + address + "'" + ")");
     }
 
     public void insertTransactionsFromFile(File data) {
 
     }
 
-    public void insertProductsFromFile(File data) {
+    public void insertProductsFromFile(File data) throws SQLException, FileNotFoundException {
+        Scanner scanner = new Scanner(data);
 
-        try {
-            Scanner scanner = new Scanner(data);
-            Statement statement = this.connection.createStatement();
+        if (scanner.hasNext())  // skip the column headers
+            scanner.next();
 
-            if (scanner.hasNext())  // skip the column headers
-                scanner.next();
+        while (scanner.hasNextLine()) {
+            String line = scanner.nextLine();
 
-            while (scanner.hasNextLine()) {
-                String line = scanner.nextLine();
-                productsCount += 1;
-                int nextId = productsCount;
-                
-                if (!line.equals("")) {
-                    String[] entries = line.split(",");
-                    String pname = entries[0];
-                    String pdate = entries[1];
-                    String hdate = entries[2];
-                    String alt = entries[3];
-                    String mintemp = entries[4];
-                    String hardness = entries[5];
+            if (!line.equals("")) {
+                String[] entries = line.split(",");
 
-                    String sql = "INSERT INTO Product "
-                            + "VALUES " + "(" + nextId + ", " + "'"  + pname +
-                            "'" + "," + "'" + hardness + "'"+ ")";
-                    statement.executeUpdate(sql);
+                String plantName = entries[0];
+                String plantDate = entries[1];
+                String harvestDate = entries[2];
+                int altitude = Integer.parseInt(entries[3]);
+                int minTemperature = Integer.parseInt(entries[4]);
+                String hardness = entries[5];
 
-                    // Insert address, zipcode, city
-                    statement.executeUpdate("INSERT INTO PlantDate_HarvestDate "
-                            + "VALUES " + "(" + nextId + "," + "'" + pdate + "'" + ","
-                            + "'" + hdate + "'" + ")");
-
-                    statement.executeUpdate("INSERT INTO AltLevel_MinTemp "
-                            + "VALUES " + "(" + nextId + "," + "'"
-                            + alt + "'" + "," + "'" + mintemp + "'" + ")");
-
-                }
-                productsCount += 1;
+                insertProduct(plantName, Integer.parseInt(hardness));
+                insertPlantDate_HarvestDate(plantDate, harvestDate);
+                insertAltLevel_MinTemp(altitude, minTemperature);
             }
-        } catch (FileNotFoundException e) {
-            System.out.println("File not found!");
-            e.printStackTrace();
-        } catch (SQLException e) {
-            e.printStackTrace();
         }
-
     }
 
-    public void insertMarketsFromFile(File data) {
-        try {
-            Scanner scanner = new Scanner(data);
-            Statement statement = this.connection.createStatement();
+    private void insertProduct(String productName, int hardness) throws SQLException {
+        nextProductId += 1;
 
-            if (scanner.hasNext())  // skip the column headers
-                scanner.next();
+        String sql = "INSERT INTO Product "
+                + "VALUES " + "(" + this.nextProductId + ", " + "'"  + productName +
+                "'" + "," + "'" + hardness + "'"+ ")";
+        statement.executeUpdate(sql);
+    }
 
-            while (scanner.hasNextLine()) {
-                String line = scanner.nextLine();
-                marketCount += 1;
-                int nextId = marketCount;
+    private void insertPlantDate_HarvestDate(String plantDate, String harvestDate) throws SQLException {
+        statement.executeUpdate("INSERT INTO PlantDate_HarvestDate "
+                + "VALUES " + "(" + this.nextProductId + "," + "'" + plantDate + "'" + ","
+                + "'" + harvestDate + "'" + ")");
+    }
 
-                if (!line.equals("")) {
-                    String[] entries = line.split(";");
-                    String name = entries[0];
-                    String address = entries[1];
-                    String zipcode = entries[2];
-                    String city = entries[3];
-                    String[] phones;
-                    int budget = Integer.parseInt(entries[5]);
+    private void insertAltLevel_MinTemp(int altitude, int minTemperature) throws SQLException {
+        statement.executeUpdate("INSERT INTO AltLevel_MinTemp "
+                + "VALUES " + "(" + this.nextProductId + "," + "'"
+                + altitude + "'" + "," + "'" + minTemperature + "'" + ")");
+    }
 
-                    if (entries[4].contains("|")) {
-                        phones = new String[entries[5].split("\\|").length];
-                        phones = entries[4].split("\\|");
-                    } else {
-                        phones = new String[1];
-                        phones[0] = entries[4];
-                    }
+    public void insertMarketsFromFile(File data) throws SQLException, FileNotFoundException {
+        Scanner scanner = new Scanner(data);
 
-                    String sql = "INSERT INTO Market "
-                            + "VALUES " + "(" + nextId + ", " + "'" + name +
-                            "'" + "," + "'" + address + "'" + "," + budget + ")";
-                    statement.executeUpdate(sql);
+        if (scanner.hasNext())  // skip the column headers
+            scanner.next();
 
-                    // Insert address, city
-                    statement.executeUpdate("INSERT INTO MarketAddressZipcode "
-                            + "VALUES " + "(" + nextId + "," + "'" + address + "'" + ","
-                            + "'" + zipcode + "'" + ")");
+        while (scanner.hasNextLine()) {
+            String line = scanner.nextLine();
 
-                    statement.executeUpdate("INSERT INTO MarketAddressCity "
-                            + "VALUES " + "(" + nextId + "," + "'"
-                            + city + "'" + "," + "'" + address + "'" + ")");
+            if (!line.equals("")) {
+                String[] entries = line.split(";");
+
+                String marketName = entries[0];
+                String marketAddress = entries[1];
+                String zipcode = entries[2];
+                String city = entries[3];
+                String[] phones;
+                int budget = Integer.parseInt(entries[5]);
+
+                if (entries[4].contains("|")) {
+                    phones = new String[entries[5].split("\\|").length];
+                    phones = entries[4].split("\\|");
+                } else {
+                    phones = new String[1];
+                    phones[0] = entries[4];
                 }
+
+                insertMarket(marketName, marketAddress, budget);
+                insertMarketAddressZipcode(marketAddress, zipcode);
+                insertMarketAddressCity(marketAddress, city);
             }
-        } catch (Exception e) {
-            e.printStackTrace();
         }
+    }
+
+    private void insertMarket(String marketName, String address, int budget) throws SQLException {
+        this.nextMarketId += 1;
+        String sql = "INSERT INTO Market "
+                + "VALUES " + "(" + this.nextMarketId + ", " + "'" + marketName +
+                "'" + "," + "'" + address + "'" + "," + budget + ")";
+        statement.executeUpdate(sql);
+    }
+
+    private void insertMarketAddressZipcode(String marketAddress, String zipcode) throws SQLException {
+        statement.executeUpdate("INSERT INTO MarketAddressZipcode "
+                + "VALUES " + "(" + this.nextMarketId + "," + "'" + marketAddress + "'" + ","
+                + "'" + zipcode + "'" + ")");
+    }
+
+    private void insertMarketAddressCity(String city, String marketAddress) throws SQLException {
+        statement.executeUpdate("INSERT INTO MarketAddressCity "
+                + "VALUES " + "(" + this.nextMarketId + "," + "'"
+                + city + "'" + "," + "'" + marketAddress + "'" + ")");
     }
 
     public void insertRegistersFromFile(File data) {
@@ -238,29 +241,27 @@ public class Session {
 
     }
 
-    public void showTables() {
-        try {
-            ResultSet rs = null;
-            DatabaseMetaData meta = connection.getMetaData();
-            rs = meta.getTables(null, null, null, new String[]{"TABLE"});
-            int rowCount = 0;
+    public void showTables() throws SQLException {
+        ResultSet rs = null;
+        DatabaseMetaData meta = connection.getMetaData();
+        rs = meta.getTables(null, null, null, new String[]{"TABLE"});
+        int rowCount = 0;
 
-            System.out.println("+-----------------------+");
-            System.out.println("| Tables_in_eciftci        |");
-            System.out.println("+-----------------------+");
+        System.out.println("+-----------------------+");
+        System.out.println("| Tables_in_eciftci        |");
+        System.out.println("+-----------------------+");
 
-            while (rs.next()) {
-                rowCount++;
-                String tableName = rs.getString("TABLE_NAME");
-                System.out.print("| " + tableName);
-                for (int i = 0; i < 25 - tableName.length(); i++)
-                    System.out.print(" ");
+        while (rs.next()) {
+            rowCount++;
+            String tableName = rs.getString("TABLE_NAME");
+            System.out.print("| " + tableName);
+            for (int i = 0; i < 25 - tableName.length(); i++)
+                System.out.print(" ");
 
-                System.out.println("|");
-            }
-            System.out.println("+-----------------------+");
-            System.out.println(rowCount + " rows in set ");
-        } catch (Exception e) {
+            System.out.println("|");
         }
+
+        System.out.println("+-----------------------+");
+        System.out.println(rowCount + " rows in set ");
     }
 }
