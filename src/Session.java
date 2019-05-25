@@ -1,3 +1,5 @@
+import com.mysql.cj.protocol.Resultset;
+
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.sql.*;
@@ -229,11 +231,101 @@ public class Session {
 
     private void insertMarketAddressCity(String city, String marketAddress) throws SQLException {
         statement.executeUpdate("INSERT INTO MarketAddressCity "
-                + "VALUES " + "(" + this.nextMarketId + "," + "'"
-                + city + "'" + "," + "'" + marketAddress + "'" + ")");
+                                  + "VALUES " + "(" + this.nextMarketId + "," + "'"
+                                  + city + "'" + "," + "'" + marketAddress + "'" + ")");
     }
 
-    public void insertRegistersFromFile(File data) {
+    public void insertRegistersFromFile(File data) throws FileNotFoundException, SQLException {
+        Scanner scanner = new Scanner(data);
+
+        if (scanner.hasNext())  // skip the column headers
+            scanner.next();
+
+        while (scanner.hasNextLine()) {
+            String line = scanner.nextLine();
+
+            if (!line.equals("")) {
+                String[] entries = line.split(";");
+
+                String farmerName = entries[0];
+                String farmerLastName = entries[1];
+                String productName = entries[2];
+                int quantity = Integer.parseInt(entries[3]);
+                double price = Double.parseDouble(entries[4].replaceAll(",", "."));
+                String iban = entries[5];
+
+                // Get the farmer id with name and last name
+                int farmerId = getFarmerIdWithNameLastName(farmerName, farmerLastName);
+                // Get the pid with pname
+                int productId = getProductIdWithProductName(productName);
+                // Insert into registers(f_id, p_id, p_name, iban, price)
+                insertRegister(farmerId, productId, quantity, iban, price);
+            }
+        }
+    }
+
+    private int getFarmerIdWithNameLastName(String name, String lastName) throws SQLException {
+        ResultSet resultSet = statement.executeQuery("SELECT F.f_id "
+                                    + " FROM Farmer F "
+                                    + " WHERE F.f_name=" + stringify(name)
+                                    + " AND F.f_last_name=" + stringify(lastName));
+
+        resultSet.next();
+        return resultSet.getInt(1);
+    }
+
+    private int getProductIdWithProductName(String productName) throws SQLException {
+        ResultSet resultSet = statement.executeQuery( "SELECT P.p_id"
+                                                        + " FROM Product P"
+                                                        + " WHERE P.p_name="
+                                                        + stringify(productName));
+
+        resultSet.next();
+        return resultSet.getInt(1);
+    }
+
+    private void insertRegister(int farmerId, int productId, int quantity,
+                                String iban, double price) throws SQLException {
+
+        Object[] params = {farmerId, productId, quantity, iban, price};
+
+        String sql = "INSERT INTO Registers VALUES "
+                + convertToMysqlParameterForm(params);
+        statement.executeUpdate(sql);
+    }
+
+    private String stringify(String toDB) {
+        return "'" + toDB + "'";
+    }
+
+    private String convertToMysqlParameterForm(Object[] params) {
+        String paramForm = "(";
+        StringBuilder strBuilderParamForm = new StringBuilder(paramForm);
+
+        for (int i = 0; i < params.length; i++) {
+            Object param = params[i];
+            StringBuilder strBuilderAdd = new StringBuilder();
+
+            if (param instanceof String) {
+                strBuilderAdd.append("'");
+                strBuilderAdd.append(param);
+                strBuilderAdd.append("'");
+            }
+            else {
+                strBuilderParamForm.append(param.toString());
+            }
+
+            strBuilderParamForm.append(strBuilderAdd.toString());
+
+            if (i < params.length - 1)
+                strBuilderParamForm.append(",");
+        }
+        strBuilderParamForm.append(')');
+
+        return strBuilderParamForm.toString();
+    }
+
+    private void getProductIdWithPName() {
 
     }
 

@@ -1193,13 +1193,13 @@ zip_code</ColNames>
     </column>
     <column id="285" parent="235" name="plant_date">
       <Position>2</Position>
-      <DataType>date|0s</DataType>
+      <DataType>varchar(20)|0s</DataType>
       <NotNull>1</NotNull>
       <ColumnKind>normal</ColumnKind>
     </column>
     <column id="286" parent="235" name="harvest_date">
       <Position>3</Position>
-      <DataType>date|0s</DataType>
+      <DataType>varchar(20)|0s</DataType>
       <ColumnKind>normal</ColumnKind>
     </column>
     <key id="287" parent="235" name="PRIMARY">
@@ -1233,171 +1233,176 @@ plant_date</ColNames>
       <NotNull>1</NotNull>
       <ColumnKind>normal</ColumnKind>
     </column>
-    <index id="292" parent="236" name="p_id">
+    <column id="292" parent="236" name="production_year">
+      <Position>4</Position>
+      <DataType>int(11)|0s</DataType>
+      <ColumnKind>normal</ColumnKind>
+    </column>
+    <index id="293" parent="236" name="p_id">
       <ColNames>p_id</ColNames>
       <Type>btree</Type>
     </index>
-    <key id="293" parent="236" name="PRIMARY">
+    <key id="294" parent="236" name="PRIMARY">
       <NameSurrogate>1</NameSurrogate>
       <ColNames>f_id
 p_id</ColNames>
       <Primary>1</Primary>
     </key>
-    <foreign-key id="294" parent="236" name="Produces_ibfk_1">
+    <foreign-key id="295" parent="236" name="Produces_ibfk_1">
       <ColNames>f_id</ColNames>
       <RefSchemaName>eciftci</RefSchemaName>
       <RefTableName>Farmer</RefTableName>
       <RefColNames>f_id</RefColNames>
     </foreign-key>
-    <foreign-key id="295" parent="236" name="Produces_ibfk_2">
+    <foreign-key id="296" parent="236" name="Produces_ibfk_2">
       <ColNames>p_id</ColNames>
       <RefSchemaName>eciftci</RefSchemaName>
       <RefTableName>Product</RefTableName>
       <RefColNames>p_id</RefColNames>
     </foreign-key>
-    <column id="296" parent="237" name="p_id">
+    <column id="297" parent="237" name="p_id">
       <Position>1</Position>
       <DataType>int(11)|0s</DataType>
       <NotNull>1</NotNull>
       <SequenceIdentity>1</SequenceIdentity>
       <ColumnKind>normal</ColumnKind>
     </column>
-    <column id="297" parent="237" name="p_name">
+    <column id="298" parent="237" name="p_name">
       <Position>2</Position>
       <DataType>varchar(20)|0s</DataType>
       <NotNull>1</NotNull>
       <ColumnKind>normal</ColumnKind>
     </column>
-    <column id="298" parent="237" name="hardness_level">
+    <column id="299" parent="237" name="hardness_level">
       <Position>3</Position>
       <DataType>int(11)|0s</DataType>
       <ColumnKind>normal</ColumnKind>
     </column>
-    <key id="299" parent="237" name="PRIMARY">
+    <key id="300" parent="237" name="PRIMARY">
       <NameSurrogate>1</NameSurrogate>
       <ColNames>p_id</ColNames>
       <Primary>1</Primary>
     </key>
-    <column id="300" parent="238" name="f_id">
+    <column id="301" parent="238" name="f_id">
       <Position>1</Position>
       <DataType>int(11)|0s</DataType>
       <NotNull>1</NotNull>
       <ColumnKind>normal</ColumnKind>
     </column>
-    <column id="301" parent="238" name="p_id">
+    <column id="302" parent="238" name="p_id">
       <Position>2</Position>
       <DataType>int(11)|0s</DataType>
       <NotNull>1</NotNull>
       <ColumnKind>normal</ColumnKind>
     </column>
-    <column id="302" parent="238" name="quantity">
+    <column id="303" parent="238" name="quantity">
       <Position>3</Position>
       <DataType>int(11)|0s</DataType>
       <NotNull>1</NotNull>
       <ColumnKind>normal</ColumnKind>
     </column>
-    <column id="303" parent="238" name="iban">
+    <column id="304" parent="238" name="iban">
       <Position>4</Position>
       <DataType>char(26)|0s</DataType>
       <NotNull>1</NotNull>
       <ColumnKind>normal</ColumnKind>
     </column>
-    <column id="304" parent="238" name="price">
+    <column id="305" parent="238" name="price">
       <Position>5</Position>
-      <DataType>int(11)|0s</DataType>
+      <DataType>float|0s</DataType>
       <NotNull>1</NotNull>
       <ColumnKind>normal</ColumnKind>
     </column>
-    <index id="305" parent="238" name="p_id">
+    <index id="306" parent="238" name="p_id">
       <ColNames>p_id</ColNames>
       <Type>btree</Type>
     </index>
-    <key id="306" parent="238" name="PRIMARY">
+    <key id="307" parent="238" name="PRIMARY">
       <NameSurrogate>1</NameSurrogate>
       <ColNames>f_id
 p_id</ColNames>
       <Primary>1</Primary>
     </key>
-    <foreign-key id="307" parent="238" name="Registers_ibfk_1">
+    <foreign-key id="308" parent="238" name="Registers_ibfk_1">
       <ColNames>f_id</ColNames>
       <RefSchemaName>eciftci</RefSchemaName>
       <RefTableName>Farmer</RefTableName>
       <RefColNames>f_id</RefColNames>
     </foreign-key>
-    <foreign-key id="308" parent="238" name="Registers_ibfk_2">
+    <foreign-key id="309" parent="238" name="Registers_ibfk_2">
       <ColNames>p_id</ColNames>
       <RefSchemaName>eciftci</RefSchemaName>
       <RefTableName>Product</RefTableName>
       <RefColNames>p_id</RefColNames>
     </foreign-key>
-    <column id="309" parent="239" name="t_id">
+    <column id="310" parent="239" name="t_id">
       <Position>1</Position>
       <DataType>int(11)|0s</DataType>
       <NotNull>1</NotNull>
       <SequenceIdentity>1</SequenceIdentity>
       <ColumnKind>normal</ColumnKind>
     </column>
-    <column id="310" parent="239" name="p_id">
+    <column id="311" parent="239" name="p_id">
       <Position>2</Position>
       <DataType>int(11)|0s</DataType>
       <NotNull>1</NotNull>
       <ColumnKind>normal</ColumnKind>
     </column>
-    <column id="311" parent="239" name="m_id">
+    <column id="312" parent="239" name="m_id">
       <Position>3</Position>
       <DataType>int(11)|0s</DataType>
       <NotNull>1</NotNull>
       <ColumnKind>normal</ColumnKind>
     </column>
-    <column id="312" parent="239" name="f_id">
+    <column id="313" parent="239" name="f_id">
       <Position>4</Position>
       <DataType>int(11)|0s</DataType>
       <NotNull>1</NotNull>
       <ColumnKind>normal</ColumnKind>
     </column>
-    <column id="313" parent="239" name="amount_sold">
+    <column id="314" parent="239" name="amount_sold">
       <Position>5</Position>
       <DataType>bigint(20)|0s</DataType>
       <NotNull>1</NotNull>
       <ColumnKind>normal</ColumnKind>
     </column>
-    <column id="314" parent="239" name="credit_card">
+    <column id="315" parent="239" name="credit_card">
       <Position>6</Position>
       <DataType>bigint(20)|0s</DataType>
       <NotNull>1</NotNull>
       <ColumnKind>normal</ColumnKind>
     </column>
-    <index id="315" parent="239" name="p_id">
+    <index id="316" parent="239" name="p_id">
       <ColNames>p_id</ColNames>
       <Type>btree</Type>
     </index>
-    <index id="316" parent="239" name="m_id">
+    <index id="317" parent="239" name="m_id">
       <ColNames>m_id</ColNames>
       <Type>btree</Type>
     </index>
-    <index id="317" parent="239" name="f_id">
+    <index id="318" parent="239" name="f_id">
       <ColNames>f_id</ColNames>
       <Type>btree</Type>
     </index>
-    <key id="318" parent="239" name="PRIMARY">
+    <key id="319" parent="239" name="PRIMARY">
       <NameSurrogate>1</NameSurrogate>
       <ColNames>t_id</ColNames>
       <Primary>1</Primary>
     </key>
-    <foreign-key id="319" parent="239" name="Transaction_ibfk_2">
+    <foreign-key id="320" parent="239" name="Transaction_ibfk_2">
       <ColNames>p_id</ColNames>
       <RefSchemaName>eciftci</RefSchemaName>
       <RefTableName>Registers</RefTableName>
       <RefColNames>p_id</RefColNames>
       <OnDelete>cascade</OnDelete>
     </foreign-key>
-    <foreign-key id="320" parent="239" name="Transaction_ibfk_3">
+    <foreign-key id="321" parent="239" name="Transaction_ibfk_3">
       <ColNames>m_id</ColNames>
       <RefSchemaName>eciftci</RefSchemaName>
       <RefTableName>Market</RefTableName>
       <RefColNames>m_id</RefColNames>
     </foreign-key>
-    <foreign-key id="321" parent="239" name="Transaction_ibfk_1">
+    <foreign-key id="322" parent="239" name="Transaction_ibfk_1">
       <ColNames>f_id</ColNames>
       <RefSchemaName>eciftci</RefSchemaName>
       <RefTableName>Registers</RefTableName>
