@@ -133,6 +133,51 @@ public class Session {
 
     public void insertProductsFromFile(File data) {
 
+        try {
+            Scanner scanner = new Scanner(data);
+            Statement statement = this.connection.createStatement();
+
+            if (scanner.hasNext())  // skip the column headers
+                scanner.next();
+
+            while (scanner.hasNextLine()) {
+                String line = scanner.nextLine();
+                productsCount += 1;
+                int nextId = productsCount;
+                
+                if (!line.equals("")) {
+                    String[] entries = line.split(",");
+                    String pname = entries[0];
+                    String pdate = entries[1];
+                    String hdate = entries[2];
+                    String alt = entries[3];
+                    String mintemp = entries[4];
+                    String hardness = entries[5];
+
+                    String sql = "INSERT INTO Product "
+                            + "VALUES " + "(" + nextId + ", " + "'"  + pname +
+                            "'" + "," + "'" + hardness + "'"+ ")";
+                    statement.executeUpdate(sql);
+
+                    // Insert address, zipcode, city
+                    statement.executeUpdate("INSERT INTO PlantDate_HarvestDate "
+                            + "VALUES " + "(" + nextId + "," + "'" + pdate + "'" + ","
+                            + "'" + hdate + "'" + ")");
+
+                    statement.executeUpdate("INSERT INTO AltLevel_MinTemp "
+                            + "VALUES " + "(" + nextId + "," + "'"
+                            + alt + "'" + "," + "'" + mintemp + "'" + ")");
+
+                }
+                productsCount += 1;
+            }
+        } catch (FileNotFoundException e) {
+            System.out.println("File not found!");
+            e.printStackTrace();
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+
     }
 
     public void insertMarketsFromFile(File data) {
