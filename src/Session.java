@@ -1,5 +1,3 @@
-import com.mysql.cj.protocol.Resultset;
-
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.sql.*;
@@ -10,8 +8,8 @@ public class Session {
     private final String ip, user, password, dbName;
     private int nextFarmerId, nextMarketId, nextProductId,nextTransactionId = 0;
 
-    Connection connection;
-    Statement statement;
+    private Connection connection;
+    private Statement statement;
 
     public Session(String ip, int port, String dbName, String user, String password)
             throws SQLException, ClassNotFoundException {
@@ -41,12 +39,13 @@ public class Session {
     }
 
     private int getNumberOfRowsInTable(String table) throws SQLException {
-        ResultSet rs = statement.executeQuery("SELECT COUNT(*) "
-                + "FROM " + table);
+        String sql = "SELECT COUNT(*) "
+                   + "FROM " + table;
+        ResultSet resultSet = statement.executeQuery(sql);
 
-        rs.next();
-        int rowCount = rs.getInt(1);
-        return rowCount;
+        resultSet.next();
+        return resultSet.getInt(1);
+
     }
 
     public void insertFarmersFromFile(File data) throws SQLException, FileNotFoundException {
@@ -93,105 +92,114 @@ public class Session {
         }
     }
 
-
     private void insertFarmer(String name, String lastName) throws SQLException {
         this.nextFarmerId += 1;
 
         String sql = "INSERT INTO Farmer "
-                + "VALUES " + "(" + this.nextFarmerId + ", " + "'" + name +
-                "'" + "," + "'" + lastName + "'" + ")";
+                   + "VALUES " + convertToMysqlValuesForm(nextFarmerId, name, lastName);
         statement.executeUpdate(sql);
     }
 
     private void insertFarmerPhoneNumber(String[] phones) throws SQLException {
         for (String phone : phones) {
             long phoneNumber = Long.valueOf(phone);
-            statement.executeUpdate("INSERT INTO FarmerPhoneNumber "
-                    + "VALUES " + "(" + phoneNumber + "," + this.nextFarmerId + ")");
+
+            String sql = "INSERT INTO FarmerPhoneNumber "
+                       + "VALUES " + convertToMysqlValuesForm(phoneNumber, nextFarmerId);
+            statement.executeUpdate(sql);
         }
     }
 
     private void insertFarmerEmail(String[] emails) throws SQLException {
         for (String email : emails) {
-            statement.executeUpdate("INSERT INTO FarmerEmail "
-                    + "VALUES " + "(" + "'" + email + "'," + this.nextFarmerId + ")");
+            String sql = "INSERT INTO FarmerEmail "
+                       + "VALUES " + convertToMysqlValuesForm(email, this.nextFarmerId);
+            statement.executeUpdate(sql);
         }
     }
 
     private void insertFarmerAddressZipcode(String address, String zipcode) throws SQLException {
-        statement.executeUpdate("INSERT INTO FarmerAddressZipcode "
-                + "VALUES " + "(" + this.nextFarmerId + "," + "'" + address + "'" + ","
-                + "'" + zipcode + "'" + ")");
+        String sql = "INSERT INTO FarmerAddressZipcode "
+                   + "VALUES " + convertToMysqlValuesForm(this.nextFarmerId, address, zipcode);
+        statement.executeUpdate(sql);
     }
 
 
     private void insertFarmerAddressCity(String address, String city) throws SQLException {
-        statement.executeUpdate("INSERT INTO FarmerAddressCity "
-                + "VALUES " + "(" + this.nextFarmerId + "," + "'"
-                + city + "'" + "," + "'" + address + "'" + ")");
+        String sql = "INSERT INTO FarmerAddressCity "
+                   + "VALUES " + convertToMysqlValuesForm(this.nextFarmerId, city, address);
+        statement.executeUpdate(sql);
     }
 
-    public void insertTransactionsFromFile(File data) {
-        try {
-            Scanner scanner = new Scanner(data);
-            Statement statement = this.connection.createStatement();
+    public void insertTransactionsFromFile(File data) throws FileNotFoundException, SQLException {
+        Scanner scanner = new Scanner(data);
 
-            if (scanner.hasNext())  // skip the column headers
-                scanner.next();
+        if (scanner.hasNext())  // skip the column headers
+            scanner.next();
 
-            while (scanner.hasNextLine()) {
-                String line = scanner.nextLine();
+        while (scanner.hasNextLine()) {
+            String line = scanner.nextLine();
 
-                if (!line.equals("")) {
-                    String[] entries = line.split(";");
-                    String fName = entries[0];
-                    String lastName = entries[1];
-                    String pName = entries[2];
-                    String mName = entries[3];
-                    String mAdress = entries[4];
-                    String amount = entries[5];
-                    String card = entries[6];
+            if (!line.equals("")) {
+                String[] entries = line.split(";");
+                String farmerName = entries[0];
+                String farmerLastName = entries[1];
+                String productName = entries[2];
+                String marketName = entries[3];
+                String marketAddress = entries[4];
+                int amount = Integer.parseInt(entries[5]);
+                String cardNumber = entries[6];
 
-                    Statement stateFid = connection.createStatement();
-                    ResultSet rsFid = stateFid.executeQuery("SELECT Farmer.f_id "
-                            + "FROM " + "Farmer, Registers " + "WHERE Farmer.f_name = " + "'" + fName + "'" +
-                            "  AND Farmer.f_last_name = " + "'" + lastName + "'" +
-                            "  AND Farmer.f_id = Registers.f_id");
+                int farmerId = getFarmerIdWithNameLastNameInRegisters(farmerName, farmerLastName);
+                int productId = getProductIdWithProductNameInRegisters(productName);
+                int marketId = getMarketIdWithMarketNameAddress(marketName, marketAddress);
 
-                    rsFid.next();
-                    int fid = rsFid.getInt(1);
-
-                    Statement statePid = connection.createStatement();
-                    ResultSet rsPid = statePid.executeQuery("SELECT Product.p_id "
-                            + "FROM " + "Product, Registers " + "WHERE Product.p_name = "+"'"+ pName+"'"+
-                            "  AND Product.p_id = Registers.p_id");
-
-                    rsPid.next();
-                    int pid = rsPid.getInt(1);
-
-                    Statement stateMid = connection.createStatement();
-                    ResultSet rsMid = stateMid.executeQuery("SELECT Market.m_id "
-                            + "FROM " + "Market " + "WHERE Market.m_name = "+"'"+ mName+"'"+"  AND Market.address = " + "'" + mAdress + "'");
-
-                    rsMid.next();
-                    int mid = rsMid.getInt(1);
-
-                    this.nextTransactionId+=1;
-
-                    String sql = "INSERT INTO Transaction "
-                            + "VALUES " + "(" + this.nextTransactionId + "," + pid + "," + mid + "," + fid + "," + amount + "," + card + ")";
-                    statement.executeUpdate(sql);
-
-                }
-
+                insertTransaction(productId, marketId, farmerId, amount, cardNumber);
             }
-        } catch (FileNotFoundException e) {
-            System.out.println("File not found!");
-            e.printStackTrace();
-        } catch (SQLException e) {
-            e.printStackTrace();
         }
+    }
 
+    private int getFarmerIdWithNameLastNameInRegisters(String farmerName, String farmerLastName) throws SQLException {
+        String sql = "SELECT Farmer.f_id "
+                   + "FROM Farmer, Registers "
+                   + "WHERE Farmer.f_name = " + stringify(farmerName)
+                   + " AND Farmer.f_last_name = " + stringify(farmerLastName)
+                   + " AND Farmer.f_id = Registers.f_id";
+        ResultSet resultSet = this.statement.executeQuery(sql);
+
+        resultSet.next();
+        return resultSet.getInt(1);
+    }
+
+    private int getProductIdWithProductNameInRegisters(String productName) throws SQLException {
+        String sql = "SELECT Product.p_id"
+                   + " FROM Product, Registers"
+                   + " WHERE Product.p_name = " + stringify(productName)
+                   + " AND Product.p_id = Registers.p_id";
+        ResultSet resultSet = this.statement.executeQuery(sql);
+
+        resultSet.next();
+        return resultSet.getInt(1);
+    }
+
+    private int getMarketIdWithMarketNameAddress(String marketName, String marketAddress) throws SQLException {
+        String sql = "SELECT Market.m_id "
+                   + "FROM Market "
+                   + "WHERE Market.m_name = " + stringify(marketName)
+                   + " AND Market.address = " + stringify(marketAddress);
+        ResultSet resultSet = this.statement.executeQuery(sql);
+
+        resultSet.next();
+        return resultSet.getInt(1);
+    }
+
+    private void insertTransaction(int productId, int marketId, int farmerId,
+                                   int amount, String cardNumber) throws SQLException {
+        this.nextTransactionId += 1;
+        String sql = "INSERT INTO Transaction "
+                   + "VALUES " + convertToMysqlValuesForm(this.nextTransactionId, productId,
+                                                          marketId, farmerId, amount, cardNumber);
+        statement.executeUpdate(sql);
     }
 
     public void insertProductsFromFile(File data) throws SQLException, FileNotFoundException {
@@ -224,21 +232,20 @@ public class Session {
         nextProductId += 1;
 
         String sql = "INSERT INTO Product "
-                + "VALUES " + "(" + this.nextProductId + ", " + "'"  + productName +
-                "'" + "," + "'" + hardness + "'"+ ")";
+                   + "VALUES " + convertToMysqlValuesForm(this.nextProductId, productName, hardness);
         statement.executeUpdate(sql);
     }
 
     private void insertPlantDate_HarvestDate(String plantDate, String harvestDate) throws SQLException {
-        statement.executeUpdate("INSERT INTO PlantDate_HarvestDate "
-                + "VALUES " + "(" + this.nextProductId + "," + "'" + plantDate + "'" + ","
-                + "'" + harvestDate + "'" + ")");
+        String sql = "INSERT INTO PlantDate_HarvestDate "
+                   + "VALUES " + convertToMysqlValuesForm(this.nextProductId, plantDate, harvestDate);
+        statement.executeUpdate(sql);
     }
 
     private void insertAltLevel_MinTemp(int altitude, int minTemperature) throws SQLException {
-        statement.executeUpdate("INSERT INTO AltLevel_MinTemp "
-                + "VALUES " + "(" + this.nextProductId + "," + "'"
-                + altitude + "'" + "," + "'" + minTemperature + "'" + ")");
+        String sql = "INSERT INTO AltLevel_MinTemp "
+                   + "VALUES " + convertToMysqlValuesForm(this.nextProductId, altitude, minTemperature);
+        statement.executeUpdate(sql);
     }
 
     public void insertMarketsFromFile(File data) throws SQLException, FileNotFoundException {
@@ -277,22 +284,22 @@ public class Session {
 
     private void insertMarket(String marketName, String address, int budget) throws SQLException {
         this.nextMarketId += 1;
+
         String sql = "INSERT INTO Market "
-                + "VALUES " + "(" + this.nextMarketId + ", " + "'" + marketName +
-                "'" + "," + "'" + address + "'" + "," + budget + ")";
+                   + "VALUES " + convertToMysqlValuesForm(this.nextMarketId, marketName, address, budget);
         statement.executeUpdate(sql);
     }
 
     private void insertMarketAddressZipcode(String marketAddress, String zipcode) throws SQLException {
-        statement.executeUpdate("INSERT INTO MarketAddressZipcode "
-                + "VALUES " + "(" + this.nextMarketId + "," + "'" + marketAddress + "'" + ","
-                + "'" + zipcode + "'" + ")");
+        String sql = "INSERT INTO MarketAddressZipcode "
+                   + "VALUES " + convertToMysqlValuesForm(this.nextMarketId, marketAddress, zipcode);
+        statement.executeUpdate(sql);
     }
 
     private void insertMarketAddressCity(String city, String marketAddress) throws SQLException {
-        statement.executeUpdate("INSERT INTO MarketAddressCity "
-                                  + "VALUES " + "(" + this.nextMarketId + "," + "'"
-                                  + city + "'" + "," + "'" + marketAddress + "'" + ")");
+        String sql = "INSERT INTO MarketAddressCity "
+                   + "VALUES " + convertToMysqlValuesForm(this.nextMarketId, city, marketAddress);
+        statement.executeUpdate(sql);
     }
 
     public void insertRegistersFromFile(File data) throws FileNotFoundException, SQLException {
@@ -325,19 +332,20 @@ public class Session {
     }
 
     private int getFarmerIdWithNameLastName(String name, String lastName) throws SQLException {
-        ResultSet resultSet = statement.executeQuery("SELECT F.f_id "
-                                    + " FROM Farmer F "
-                                    + " WHERE F.f_name=" + stringify(name)
-                                    + " AND F.f_last_name=" + stringify(lastName));
+        String sql = "SELECT F.f_id "
+                   + "FROM Farmer F "
+                   + "WHERE F.f_name = " + stringify(name)
+                   + " AND F.f_last_name = " + stringify(lastName);
+        ResultSet resultSet = statement.executeQuery(sql);
 
         resultSet.next();
         return resultSet.getInt(1);
     }
 
     private int getProductIdWithProductName(String productName) throws SQLException {
-        ResultSet resultSet = statement.executeQuery( "SELECT P.p_id"
-                                                        + " FROM Product P"
-                                                        + " WHERE P.p_name="
+        ResultSet resultSet = statement.executeQuery( "SELECT P.p_id "
+                                                        + "FROM Product P "
+                                                        + "WHERE P.p_name = "
                                                         + stringify(productName));
 
         resultSet.next();
@@ -347,110 +355,87 @@ public class Session {
     private void insertRegister(int farmerId, int productId, int quantity,
                                 String iban, double price) throws SQLException {
 
-        Object[] params = {farmerId, productId, quantity, iban, price};
-
         String sql = "INSERT INTO Registers VALUES "
-                + convertToMysqlParameterForm(params);
+                   + convertToMysqlValuesForm(farmerId, productId, quantity, iban, price);
         statement.executeUpdate(sql);
     }
 
+    // Returns the string variable in Mysql string form, x -> 'x'
     private String stringify(String toDB) {
         return "'" + toDB + "'";
     }
 
-    private String convertToMysqlParameterForm(Object[] params) {
+    // Gets a series of values, returns string for Mysql VALUES: (x, String y, z) -> (x, 'y', z)
+    @SafeVarargs
+    private <T> String convertToMysqlValuesForm(T... values) {
         String paramForm = "(";
         StringBuilder strBuilderParamForm = new StringBuilder(paramForm);
 
-        for (int i = 0; i < params.length; i++) {
-            Object param = params[i];
+        for (int i = 0; i < values.length; i++) {
+            T param = values[i];
             StringBuilder strBuilderAdd = new StringBuilder();
 
             if (param instanceof String) {
-                strBuilderAdd.append("'");
-                strBuilderAdd.append(param);
-                strBuilderAdd.append("'");
-            }
-            else {
+                strBuilderAdd.append(stringify(param.toString()));
+            } else {
                 strBuilderParamForm.append(param.toString());
             }
 
             strBuilderParamForm.append(strBuilderAdd.toString());
 
-            if (i < params.length - 1)
+            if (i < values.length - 1)
                 strBuilderParamForm.append(",");
         }
+
         strBuilderParamForm.append(')');
 
         return strBuilderParamForm.toString();
     }
 
-    private void getProductIdWithPName() {
+    public void insertProducesFromFile(File data) throws FileNotFoundException, SQLException {
+        Scanner scanner = new Scanner(data);
 
-    }
+        if (scanner.hasNext())  // skip the column headers
+            scanner.next();
 
-    public void insertProducesFromFile(File data) {
-        try {
-            Scanner scanner = new Scanner(data);
-            Statement statement = this.connection.createStatement();
+        while (scanner.hasNextLine()) {
+            String line = scanner.nextLine();
 
-            if (scanner.hasNext())  // skip the column headers
-                scanner.next();
+            if (!line.equals("")) {
+                String[] entries = line.split(";");
+                String farmerName = entries[0];
+                String farmerLastName = entries[1];
+                String productName = entries[2];
+                int quantity = Integer.parseInt(entries[3]);
+                int year = Integer.parseInt(entries[4]);
 
-            while (scanner.hasNextLine()) {
-                String line = scanner.nextLine();
+                int farmerId = getFarmerIdWithNameLastName(farmerName, farmerLastName);
+                int productId = getProductIdWithProductName(productName);
 
-                if (!line.equals("")) {
-                    String[] entries = line.split(";");
-                    String fname = entries[0];
-                    String lastName = entries[1];
-                    String pname = entries[2];
-                    String amount = entries[3];
-                    String year = entries[4];
-
-                    Statement stateFid = connection.createStatement();
-                    ResultSet rsFid = stateFid.executeQuery("SELECT Farmer.f_id "
-                            + "FROM " + "Farmer " + "WHERE Farmer.f_name = " + "'" + fname + "'" +"  AND Farmer.f_last_name = " + "'" + lastName + "'");
-
-                    rsFid.next();
-                    int fid = rsFid.getInt(1);
-
-                    Statement statePid = connection.createStatement();
-                    ResultSet rsPid = statePid.executeQuery("SELECT Product.p_id "
-                            + "FROM " + "Product " + "WHERE Product.p_name = "+"'"+ pname+"'");
-
-                    rsPid.next();
-                    int pid = rsPid.getInt(1);
-
-
-                    String sql = "INSERT INTO Produces "
-                            + "VALUES " + "(" + fid + "," + pid + "," + amount + "," + "'"+ year + "'" + ")";
-                    statement.executeUpdate(sql);
-
-                }
-
+                insertProduces(farmerId, productId, quantity, year);
             }
-        } catch (FileNotFoundException e) {
-            System.out.println("File not found!");
-            e.printStackTrace();
-        } catch (SQLException e) {
-            e.printStackTrace();
         }
     }
 
+
+    private void insertProduces(int farmerId, int productId, int quantity, int year) throws SQLException {
+        String sql = "INSERT INTO Produces "
+                   + "VALUES " + convertToMysqlValuesForm(farmerId, productId, quantity, year);
+        statement.executeUpdate(sql);
+    }
+
     public void showTables() throws SQLException {
-        ResultSet rs = null;
         DatabaseMetaData meta = connection.getMetaData();
-        rs = meta.getTables(null, null, null, new String[]{"TABLE"});
+        ResultSet resultSet = meta.getTables(null, null, null, new String[]{"TABLE"});
         int rowCount = 0;
 
         System.out.println("+-----------------------+");
         System.out.println("| Tables_in_eciftci        |");
         System.out.println("+-----------------------+");
 
-        while (rs.next()) {
+        while (resultSet.next()) {
             rowCount++;
-            String tableName = rs.getString("TABLE_NAME");
+            String tableName = resultSet.getString("TABLE_NAME");
             System.out.print("| " + tableName);
             for (int i = 0; i < 25 - tableName.length(); i++)
                 System.out.print(" ");

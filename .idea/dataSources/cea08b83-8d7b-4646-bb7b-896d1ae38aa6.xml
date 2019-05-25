@@ -1235,7 +1235,8 @@ plant_date</ColNames>
     </column>
     <column id="292" parent="236" name="production_year">
       <Position>4</Position>
-      <DataType>int(11)|0s</DataType>
+      <DataType>varchar(20)|0s</DataType>
+      <NotNull>1</NotNull>
       <ColumnKind>normal</ColumnKind>
     </column>
     <index id="293" parent="236" name="p_id">
@@ -1245,7 +1246,8 @@ plant_date</ColNames>
     <key id="294" parent="236" name="PRIMARY">
       <NameSurrogate>1</NameSurrogate>
       <ColNames>f_id
-p_id</ColNames>
+p_id
+production_year</ColNames>
       <Primary>1</Primary>
     </key>
     <foreign-key id="295" parent="236" name="Produces_ibfk_1">
@@ -1328,6 +1330,7 @@ p_id</ColNames>
       <RefSchemaName>eciftci</RefSchemaName>
       <RefTableName>Farmer</RefTableName>
       <RefColNames>f_id</RefColNames>
+      <OnDelete>cascade</OnDelete>
     </foreign-key>
     <foreign-key id="309" parent="238" name="Registers_ibfk_2">
       <ColNames>p_id</ColNames>

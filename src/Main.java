@@ -1,5 +1,4 @@
 import java.io.File;
-import java.sql.SQLException;
 
 public class Main {
     public static void main(String[] args) {
@@ -14,13 +13,13 @@ public class Main {
             Session session = new Session("134.209.246.115", 3306, "eciftci",
                     "root", "Ybcs202_2019");
 
-            // session.showTables();
-            // session.insertFarmersFromFile(farmers);
-            // session.insertMarketsFromFile(markets);
-            // session.insertProductsFromFile(products);
-            //session.insertProducesFromFile(produces);
-            //session.insertRegistersFromFile(registers);
-            //session.insertTransactionsFromFile(transactions);
+            session.showTables();
+            session.insertFarmersFromFile(farmers);
+            session.insertMarketsFromFile(markets);
+            session.insertProductsFromFile(products);
+            session.insertProducesFromFile(produces);
+            session.insertRegistersFromFile(registers);
+            session.insertTransactionsFromFile(transactions);
         } catch (Exception e) {
             e.printStackTrace();
         }
