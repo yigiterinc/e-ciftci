@@ -3,39 +3,74 @@ import java.io.FileNotFoundException;
 import java.sql.*;
 import java.util.Scanner;
 
-public class Session {
-    private final int port;
-    private final String ip, user, password, dbName;
+class Session {
+    private final int PORT;
+    private final String IP, USER, PASSWORD, DB_NAME;
+
+    private static final String RESOURCES_PATH = "src/Resources/";
+    static final String[] RESOURCE_FILE_NAMES = {"farmers", "markets", "products",
+                                                 "produces", "registers", "buys"};
+
     private int nextFarmerId, nextMarketId, nextProductId,nextTransactionId = 0;
+    private boolean connectedToServer = false;
 
     private Connection connection;
     private Statement statement;
 
-    public Session(String ip, int port, String dbName, String user, String password)
-            throws SQLException, ClassNotFoundException {
-
-        this.ip = ip;
-        this.port = port;
-        this.dbName = dbName;
-        this.user = user;
-        this.password = password;
+    Session(String ip, int port, String dbName, String USER, String PASSWORD) {
+        this.IP = ip;
+        this.PORT = port;
+        this.DB_NAME = dbName;
+        this.USER = USER;
+        this.PASSWORD = PASSWORD;
 
         connectToServer();
         getCurrentRowCounts();
     }
 
-    private void connectToServer() throws ClassNotFoundException, SQLException {
-        Class.forName("com.mysql.cj.jdbc.Driver");
-        String address = "jdbc:mysql://" + ip + ":" + port + "/" + dbName;
-        connection = DriverManager.getConnection(address, user, password);
-        statement = connection.createStatement();
+    private void connectToServer() {
+        int trialsLeft = 5; // # of trials to connect before quitting the application
+
+        try {
+            System.out.println("Opening a connection to " + IP + ":" + PORT + "/" + DB_NAME);
+            Class.forName("com.mysql.cj.jdbc.Driver");
+            String address = "jdbc:mysql://" + IP + ":" + PORT + "/" + DB_NAME;
+            connection = DriverManager.getConnection(address, USER, PASSWORD);
+            statement = connection.createStatement();
+            connectedToServer = true;
+            System.out.println("Connection successful");
+        } catch (Exception e) {
+            System.out.println("Connection to server failed! Trying again...");
+            connectToServer(trialsLeft);
+        }
     }
 
-    private void getCurrentRowCounts() throws SQLException {
-        nextFarmerId = getNumberOfRowsInTable("Farmer");
-        nextMarketId = getNumberOfRowsInTable("Market");
-        nextProductId = getNumberOfRowsInTable("Product");
-        nextTransactionId = getNumberOfRowsInTable("Transaction");
+    private void connectToServer(int trialsLeft) {
+        connectToServer();
+
+        if (connectedToServer) {
+            System.out.println("Connection successful");
+            return;
+        }
+
+        if (trialsLeft > 0) {
+            connectToServer(trialsLeft - 1);
+        } else {
+            System.out.println("Can't connect to server! Quitting...");
+            System.exit(-1);
+        }
+    }
+
+    private void getCurrentRowCounts() {
+        try {
+            nextFarmerId = getNumberOfRowsInTable("Farmer");
+            nextMarketId = getNumberOfRowsInTable("Market");
+            nextProductId = getNumberOfRowsInTable("Product");
+            nextTransactionId = getNumberOfRowsInTable("Transaction");
+        } catch (SQLException e) {
+            System.out.println("Something went wrong while getting the current row counts");
+            e.printStackTrace();
+        }
     }
 
     private int getNumberOfRowsInTable(String table) throws SQLException {
@@ -45,10 +80,29 @@ public class Session {
 
         resultSet.next();
         return resultSet.getInt(1);
-
     }
 
-    public void insertFarmersFromFile(File data) throws SQLException, FileNotFoundException {
+    void loadFromFiles() {
+        File[] files = new File[6];
+
+        for (int i = 0; i < RESOURCE_FILE_NAMES.length; i++)
+            files[i] = new File(RESOURCES_PATH + RESOURCE_FILE_NAMES[i] + ".csv");
+
+        try {
+            loadFarmersFromFile(files[0]);
+            loadMarketsFromFile(files[1]);
+            loadProductsFromFile(files[2]);
+            loadProducesFromFile(files[3]);
+            loadRegistersFromFile(files[4]);
+            loadTransactionsFromFile(files[5]);
+            System.out.println("Data is successfully loaded");
+        } catch (Exception e) {
+            System.out.println("Failed to load the data");
+            e.printStackTrace();
+        }
+    }
+
+    void loadFarmersFromFile(File data) throws SQLException, FileNotFoundException {
         Scanner scanner = new Scanner(data);
 
         if (scanner.hasNext())  // skip the column headers
@@ -83,11 +137,7 @@ public class Session {
                 }
 
                 // Execute the insert statements
-                insertFarmer(name, lastName);
-                insertFarmerPhoneNumber(phones);
-                insertFarmerEmail(emails);
-                insertFarmerAddressZipcode(address, zipcode);
-                insertFarmerAddressCity(city, address);
+                insertFarmerRelatedData(name, lastName, zipcode, city, phones, emails);
             }
         }
     }
@@ -100,7 +150,7 @@ public class Session {
         statement.executeUpdate(sql);
     }
 
-    private void insertFarmerPhoneNumber(String[] phones) throws SQLException {
+    private void insertFarmerPhoneNumbers(String[] phones) throws SQLException {
         for (String phone : phones) {
             long phoneNumber = Long.valueOf(phone);
 
@@ -110,7 +160,7 @@ public class Session {
         }
     }
 
-    private void insertFarmerEmail(String[] emails) throws SQLException {
+    private void insertFarmerEmails(String[] emails) throws SQLException {
         for (String email : emails) {
             String sql = "INSERT INTO FarmerEmail "
                        + "VALUES " + convertToMysqlValuesForm(email, this.nextFarmerId);
@@ -124,14 +174,13 @@ public class Session {
         statement.executeUpdate(sql);
     }
 
-
-    private void insertFarmerAddressCity(String address, String city) throws SQLException {
+    private void insertFarmerAddressCity(String city, String address) throws SQLException {
         String sql = "INSERT INTO FarmerAddressCity "
                    + "VALUES " + convertToMysqlValuesForm(this.nextFarmerId, city, address);
         statement.executeUpdate(sql);
     }
 
-    public void insertTransactionsFromFile(File data) throws FileNotFoundException, SQLException {
+    void loadTransactionsFromFile(File data) throws FileNotFoundException, SQLException {
         Scanner scanner = new Scanner(data);
 
         if (scanner.hasNext())  // skip the column headers
@@ -202,7 +251,7 @@ public class Session {
         statement.executeUpdate(sql);
     }
 
-    public void insertProductsFromFile(File data) throws SQLException, FileNotFoundException {
+    void loadProductsFromFile(File data) throws SQLException, FileNotFoundException {
         Scanner scanner = new Scanner(data);
 
         if (scanner.hasNext())  // skip the column headers
@@ -248,7 +297,7 @@ public class Session {
         statement.executeUpdate(sql);
     }
 
-    public void insertMarketsFromFile(File data) throws SQLException, FileNotFoundException {
+    void loadMarketsFromFile(File data) throws SQLException, FileNotFoundException {
         Scanner scanner = new Scanner(data);
 
         if (scanner.hasNext())  // skip the column headers
@@ -264,7 +313,7 @@ public class Session {
                 String marketAddress = entries[1];
                 String zipcode = entries[2];
                 String city = entries[3];
-                String[] phones;
+                String[] phones = entries;
                 int budget = Integer.parseInt(entries[5]);
 
                 if (entries[4].contains("|")) {
@@ -275,9 +324,7 @@ public class Session {
                     phones[0] = entries[4];
                 }
 
-                insertMarket(marketName, marketAddress, budget);
-                insertMarketAddressZipcode(marketAddress, zipcode);
-                insertMarketAddressCity(marketAddress, city);
+                insertMarketRelatedData(marketName, marketAddress, zipcode, city, budget, phones);
             }
         }
     }
@@ -302,7 +349,7 @@ public class Session {
         statement.executeUpdate(sql);
     }
 
-    public void insertRegistersFromFile(File data) throws FileNotFoundException, SQLException {
+    void loadRegistersFromFile(File data) throws FileNotFoundException, SQLException {
         Scanner scanner = new Scanner(data);
 
         if (scanner.hasNext())  // skip the column headers
@@ -368,31 +415,31 @@ public class Session {
     // Gets a series of values, returns string for Mysql VALUES: (x, String y, z) -> (x, 'y', z)
     @SafeVarargs
     private <T> String convertToMysqlValuesForm(T... values) {
-        String paramForm = "(";
-        StringBuilder strBuilderParamForm = new StringBuilder(paramForm);
+        String valuesFormed = "(";
+        StringBuilder valuesFormedBuilder = new StringBuilder(valuesFormed);
 
         for (int i = 0; i < values.length; i++) {
-            T param = values[i];
-            StringBuilder strBuilderAdd = new StringBuilder();
+            T value = values[i];
+            StringBuilder addBuilder = new StringBuilder();
 
-            if (param instanceof String) {
-                strBuilderAdd.append(stringify(param.toString()));
+            if (value instanceof String) {
+                addBuilder.append(stringify(value.toString()));
             } else {
-                strBuilderParamForm.append(param.toString());
+                valuesFormedBuilder.append(value.toString());
             }
 
-            strBuilderParamForm.append(strBuilderAdd.toString());
+            valuesFormedBuilder.append(addBuilder.toString());
 
             if (i < values.length - 1)
-                strBuilderParamForm.append(",");
+                valuesFormedBuilder.append(",");
         }
 
-        strBuilderParamForm.append(')');
+        valuesFormedBuilder.append(')');
 
-        return strBuilderParamForm.toString();
+        return valuesFormedBuilder.toString();
     }
 
-    public void insertProducesFromFile(File data) throws FileNotFoundException, SQLException {
+    void loadProducesFromFile(File data) throws FileNotFoundException, SQLException {
         Scanner scanner = new Scanner(data);
 
         if (scanner.hasNext())  // skip the column headers
@@ -417,33 +464,139 @@ public class Session {
         }
     }
 
-
     private void insertProduces(int farmerId, int productId, int quantity, int year) throws SQLException {
         String sql = "INSERT INTO Produces "
                    + "VALUES " + convertToMysqlValuesForm(farmerId, productId, quantity, year);
         statement.executeUpdate(sql);
     }
 
-    public void showTables() throws SQLException {
-        DatabaseMetaData meta = connection.getMetaData();
-        ResultSet resultSet = meta.getTables(null, null, null, new String[]{"TABLE"});
-        int rowCount = 0;
+    void showTables() {
+        try {
+            DatabaseMetaData meta = connection.getMetaData();
+            ResultSet resultSet = meta.getTables(null, null, null, new String[]{"TABLE"});
+            int rowCount = 0;
 
-        System.out.println("+-----------------------+");
-        System.out.println("| Tables_in_eciftci        |");
-        System.out.println("+-----------------------+");
+            System.out.println("+-----------------------+");
+            System.out.println("| Tables_in_eciftci        |");
+            System.out.println("+-----------------------+");
 
-        while (resultSet.next()) {
-            rowCount++;
-            String tableName = resultSet.getString("TABLE_NAME");
-            System.out.print("| " + tableName);
-            for (int i = 0; i < 25 - tableName.length(); i++)
-                System.out.print(" ");
+            while (resultSet.next()) {
+                rowCount++;
+                String tableName = resultSet.getString("TABLE_NAME");
+                System.out.print("| " + tableName);
+                for (int i = 0; i < 25 - tableName.length(); i++)
+                    System.out.print(" ");
 
-            System.out.println("|");
+                System.out.println("|");
+            }
+
+            System.out.println("+-----------------------+");
+            System.out.println(rowCount + " rows in set ");
+        } catch (Exception e) {
+            e.printStackTrace();
         }
+    }
 
-        System.out.println("+-----------------------+");
-        System.out.println(rowCount + " rows in set ");
+    void addToDatabase(String secondWord, String values) throws SQLException {
+        String tableName = secondWord.substring(0, secondWord.length() - 1);
+
+        if (tableName.equalsIgnoreCase("FARMER"))
+            addFarmers(values);
+        else if (tableName.equalsIgnoreCase("PRODUCT"))
+            addProducts(values);
+        else if (tableName.equalsIgnoreCase("MARKET"))
+            addMarkets(values);
+    }
+
+    void addFarmers(String values) throws SQLException {
+        String[] valueSets = values.split(":");
+
+        for (String valueSet : valueSets) {
+            valueSet = valueSet.substring(1, valueSet.length() - 1);
+            String[] valuesSeparated = valueSet.split(",");
+
+            String name = valuesSeparated[0];
+            String lastName = valuesSeparated[1];
+            String zipCode = valuesSeparated[2];
+            String city = valuesSeparated[3];
+            String[] phoneNumbers = valuesSeparated[4].split(";");
+            String[] emails = valuesSeparated[5].split(";");
+
+            insertFarmerRelatedData(name, lastName, zipCode, city, phoneNumbers, emails);
+        }
+    }
+
+    private void insertFarmerRelatedData(String name, String lastName, String zipCode, String city, String[] phoneNumbers, String[] emails) throws SQLException {
+        insertFarmer(name, lastName);
+        insertFarmerAddressZipcode("", zipCode);
+        insertFarmerAddressCity(city, "");
+        insertFarmerPhoneNumbers(phoneNumbers);
+        insertFarmerEmails(emails);
+        System.out.println("Farmers are successfully inserted\n");
+    }
+
+    private void addProducts(String values) throws SQLException {
+        String[] valueSets = values.split(":");
+
+        for (String valueSet : valueSets) {
+            valueSet = valueSet.substring(1, valueSet.length() - 1);
+            String[] valuesSeparated = valueSet.split(",");
+
+            String productName = valuesSeparated[0];
+            String plantDate = valuesSeparated[1];
+            String harvestDate = valuesSeparated[2];
+            int hardness = Integer.parseInt(valuesSeparated[3]);
+            int altitude = Integer.parseInt(valuesSeparated[4]);
+            int minTemp = Integer.parseInt(valuesSeparated[5]);
+
+            insertProductRelatedData(productName, plantDate, harvestDate, hardness, altitude, minTemp);
+        }
+    }
+
+    private void insertProductRelatedData(String productName, String plantDate, String harvestDate,
+                                          int hardness, int altitude, int minTemp) throws SQLException {
+        insertProduct(productName, hardness);
+        insertPlantDate_HarvestDate(plantDate, harvestDate);
+        insertAltLevel_MinTemp(altitude, minTemp);
+    }
+
+
+    private void addMarkets(String values) throws SQLException {
+        String[] valueSets = values.split(":");
+
+        for (String valueSet : valueSets) {
+            valueSet = valueSet.substring(1, valueSet.length() - 1);
+            String[] valuesSeparated = valueSet.split(",");
+            String marketName = valuesSeparated[0];
+            String marketAddress = valuesSeparated[1];
+            String zip_code = valuesSeparated[2];
+            String city = valuesSeparated[3];
+            String[] phones = valuesSeparated[4].split(";");
+            int budget = Integer.parseInt(valuesSeparated[5]);
+
+            insertMarketRelatedData(marketName, marketAddress, zip_code, city, budget, phones);
+        }
+    }
+
+
+    private void insertMarketRelatedData(String marketName, String marketAddress,
+                                         String zipcode, String city,
+                                         int budget, String[] phoneNumbers) throws SQLException {
+        insertMarket(marketName, marketAddress, budget);
+        insertMarketAddressZipcode(marketAddress, zipcode);
+        insertMarketAddressCity(marketAddress, city);
+        insertMarketPhoneNumber(phoneNumbers);
+    }
+
+    void insertMarketPhoneNumber(String[] phoneNumbers) throws SQLException {
+        for (String phone : phoneNumbers) {
+            long phoneNumber = Long.valueOf(phone);
+
+            String sql = "INSERT INTO MarketPhoneNumber "
+                       + "VALUES " + convertToMysqlValuesForm(phoneNumber, nextMarketId);
+            statement.executeUpdate(sql);
+        }
     }
 }
+
+
