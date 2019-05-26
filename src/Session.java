@@ -1,6 +1,7 @@
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.sql.*;
+import java.util.ArrayList;
 import java.util.Scanner;
 
 class Session {
@@ -8,8 +9,8 @@ class Session {
     private final String IP, USER, PASSWORD, DB_NAME;
 
     private static final String RESOURCES_PATH = "src/Resources/";
-    static final String[] RESOURCE_FILE_NAMES = {"farmers", "markets", "products",
-                                                 "produces", "registers", "buys"};
+    private static final String[] RESOURCE_FILE_NAMES = {"farmers", "markets", "products",
+                                                         "produces", "registers", "buys"};
 
     private int nextFarmerId, nextMarketId, nextProductId,nextTransactionId = 0;
     private boolean connectedToServer = false;
@@ -156,7 +157,7 @@ class Session {
 
             String sql = "INSERT INTO FarmerPhoneNumber "
                        + "VALUES " + convertToMysqlValuesForm(phoneNumber, nextFarmerId);
-            statement.executeUpdate(sql);
+            statement.executeUpdate(sql );
         }
     }
 
@@ -509,20 +510,40 @@ class Session {
     }
 
     void addFarmers(String values) throws SQLException {
-        String[] valueSets = values.split(":");
+        // Cache the keys to query the inserted data to delete in case of failure
+        ArrayList<Integer> farmerIds = new ArrayList<>();
 
-        for (String valueSet : valueSets) {
-            valueSet = valueSet.substring(1, valueSet.length() - 1);
-            String[] valuesSeparated = valueSet.split(",");
+        try {
+            String[] valueSets = values.split(":");
+            for (String valueSet : valueSets) {
+                valueSet = valueSet.substring(1, valueSet.length() - 1);
+                String[] valuesSeparated = valueSet.split(",");
 
-            String name = valuesSeparated[0];
-            String lastName = valuesSeparated[1];
-            String zipCode = valuesSeparated[2];
-            String city = valuesSeparated[3];
-            String[] phoneNumbers = valuesSeparated[4].split(";");
-            String[] emails = valuesSeparated[5].split(";");
+                String name = valuesSeparated[0];
+                String lastName = valuesSeparated[1];
+                String zipCode = valuesSeparated[2];
+                String city = valuesSeparated[3];
+                String[] phoneNumbers = valuesSeparated[4].split(";");
+                String[] emails = valuesSeparated[5].split(";");
 
-            insertFarmerRelatedData(name, lastName, zipCode, city, phoneNumbers, emails);
+                farmerIds.add(nextFarmerId + 1);
+
+                insertFarmerRelatedData(name, lastName, zipCode, city, phoneNumbers, emails);
+            }
+        } catch (Exception e) {
+            System.out.println("A critical error has occurred during an insertion, aborting for the sake of atomicity");
+            deleteFarmersWithId(farmerIds);
+            e.printStackTrace();
+        }
+    }
+
+    private void deleteFarmersWithId(ArrayList<Integer> farmerIds) throws SQLException {
+        // Create the query body to avoid unnecessary string operations in for loop
+        String sql = "DELETE FROM Farmer " +
+                     "WHERE f_id = ";
+
+        for (int farmerId : farmerIds) {
+             statement.executeUpdate(sql + farmerId);
         }
     }
 
@@ -532,24 +553,34 @@ class Session {
         insertFarmerAddressCity(city, "");
         insertFarmerPhoneNumbers(phoneNumbers);
         insertFarmerEmails(emails);
-        System.out.println("Farmers are successfully inserted\n");
     }
 
     private void addProducts(String values) throws SQLException {
-        String[] valueSets = values.split(":");
+        // Cache the keys to query the inserted data to delete in case of failure
+        ArrayList<Integer> productIds = new ArrayList<>();
 
-        for (String valueSet : valueSets) {
-            valueSet = valueSet.substring(1, valueSet.length() - 1);
-            String[] valuesSeparated = valueSet.split(",");
+        try {
+            String[] valueSets = values.split(":");
 
-            String productName = valuesSeparated[0];
-            String plantDate = valuesSeparated[1];
-            String harvestDate = valuesSeparated[2];
-            int hardness = Integer.parseInt(valuesSeparated[3]);
-            int altitude = Integer.parseInt(valuesSeparated[4]);
-            int minTemp = Integer.parseInt(valuesSeparated[5]);
+            for (String valueSet : valueSets) {
+                valueSet = valueSet.substring(1, valueSet.length() - 1);
+                String[] valuesSeparated = valueSet.split(",");
 
-            insertProductRelatedData(productName, plantDate, harvestDate, hardness, altitude, minTemp);
+                String productName = valuesSeparated[0];
+                String plantDate = valuesSeparated[1];
+                String harvestDate = valuesSeparated[2];
+                int hardness = Integer.parseInt(valuesSeparated[3]);
+                int altitude = Integer.parseInt(valuesSeparated[4]);
+                int minTemp = Integer.parseInt(valuesSeparated[5]);
+
+                productIds.add(nextProductId + 1);
+
+                insertProductRelatedData(productName, plantDate, harvestDate, hardness, altitude, minTemp);
+            }
+        } catch (Exception e) {
+            System.out.println("A critical error has occurred during an insertion, aborting for the sake of atomicity");
+            deleteProducts(productIds);
+            e.printStackTrace();
         }
     }
 
@@ -560,24 +591,43 @@ class Session {
         insertAltLevel_MinTemp(altitude, minTemp);
     }
 
+    private void deleteProducts(ArrayList<Integer> productIds) throws SQLException {
+        String sql = "DELETE FROM Product " +
+                     "WHERE p_id = ";
 
-    private void addMarkets(String values) throws SQLException {
-        String[] valueSets = values.split(":");
-
-        for (String valueSet : valueSets) {
-            valueSet = valueSet.substring(1, valueSet.length() - 1);
-            String[] valuesSeparated = valueSet.split(",");
-            String marketName = valuesSeparated[0];
-            String marketAddress = valuesSeparated[1];
-            String zip_code = valuesSeparated[2];
-            String city = valuesSeparated[3];
-            String[] phones = valuesSeparated[4].split(";");
-            int budget = Integer.parseInt(valuesSeparated[5]);
-
-            insertMarketRelatedData(marketName, marketAddress, zip_code, city, budget, phones);
+        for (int productId : productIds) {
+            statement.executeUpdate(sql + productId);
         }
     }
 
+
+    private void addMarkets(String values) throws SQLException {
+        // Cache the keys to query the inserted data to delete in case of failure
+        ArrayList<Integer> marketIds = new ArrayList<>();
+
+        try {
+            String[] valueSets = values.split(":");
+
+            for (String valueSet : valueSets) {
+                valueSet = valueSet.substring(1, valueSet.length() - 1);
+                String[] valuesSeparated = valueSet.split(",");
+                String marketName = valuesSeparated[0];
+                String marketAddress = valuesSeparated[1];
+                String zip_code = valuesSeparated[2];
+                String city = valuesSeparated[3];
+                String[] phones = valuesSeparated[4].split(";");
+                int budget = Integer.parseInt(valuesSeparated[5]);
+
+                marketIds.add(nextMarketId + 1);
+
+                insertMarketRelatedData(marketName, marketAddress, zip_code, city, budget, phones);
+            }
+        } catch (Exception e) {
+            System.out.println("A critical error has occurred during an insertion, aborting for the sake of atomicity");
+            deleteMarkets(marketIds);
+            e.printStackTrace();
+        }
+    }
 
     private void insertMarketRelatedData(String marketName, String marketAddress,
                                          String zipcode, String city,
@@ -586,6 +636,15 @@ class Session {
         insertMarketAddressZipcode(marketAddress, zipcode);
         insertMarketAddressCity(marketAddress, city);
         insertMarketPhoneNumber(phoneNumbers);
+    }
+
+    private void deleteMarkets(ArrayList<Integer> marketIds) throws SQLException {
+        String sql = "DELETE FROM Market " +
+                     "WHERE m_id = ";
+
+        for (int marketId : marketIds) {
+            statement.executeUpdate(sql + marketId);
+        }
     }
 
     void insertMarketPhoneNumber(String[] phoneNumbers) throws SQLException {
