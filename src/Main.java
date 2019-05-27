@@ -14,12 +14,12 @@ public class Main {
 
         Scanner scanner = new Scanner(System.in);
 
-        System.out.println("Welcome, type in 'load' to load the data from Resources\n" +
-                           "and 'show tables' to see the tables\n" +
+        System.out.println("Welcome, type in 'LOAD DATA' to load the data from Resources\n" +
+                           "and 'SHOW TABLES' to see the tables\n" +
                            "'ADD X(values)' for single entry or 'ADD Xs(values) to insert multiple entries\n" +
                            "it is assumed that multi values like email will be separated with ;" +
-                           "You can use 'query' then enter the number of the query (1-5) " +
-                           "to run, type 'exit' to exit.");
+                           "You can use 'QUERY X' where X is the number of the query (1-5) " +
+                           "to run, type 'EXIT' to exit.");
 
         while (true) {
             String input = scanner.nextLine();
@@ -33,7 +33,7 @@ public class Main {
             if (firstWord.equalsIgnoreCase("load")) {
                 session.loadFromFiles();
             } else if (firstWord.equalsIgnoreCase("query")) {
-
+                session.runQuery(secondWord);
             } else if(input.equalsIgnoreCase("show tables")) {
                 session.showTables();
             } else if (firstWord.equalsIgnoreCase("exit")) {

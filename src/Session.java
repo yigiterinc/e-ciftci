@@ -1,8 +1,9 @@
+import javax.xml.transform.Result;
 import java.io.File;
 import java.io.FileNotFoundException;
+import java.security.Key;
 import java.sql.*;
-import java.util.ArrayList;
-import java.util.Scanner;
+import java.util.*;
 
 class Session {
     private final int PORT;
@@ -103,7 +104,7 @@ class Session {
         }
     }
 
-    void loadFarmersFromFile(File data) throws SQLException, FileNotFoundException {
+    private void loadFarmersFromFile(File data) throws SQLException, FileNotFoundException {
         Scanner scanner = new Scanner(data);
 
         if (scanner.hasNext())  // skip the column headers
@@ -252,7 +253,7 @@ class Session {
         statement.executeUpdate(sql);
     }
 
-    void loadProductsFromFile(File data) throws SQLException, FileNotFoundException {
+    private void loadProductsFromFile(File data) throws SQLException, FileNotFoundException {
         Scanner scanner = new Scanner(data);
 
         if (scanner.hasNext())  // skip the column headers
@@ -298,7 +299,7 @@ class Session {
         statement.executeUpdate(sql);
     }
 
-    void loadMarketsFromFile(File data) throws SQLException, FileNotFoundException {
+    private void loadMarketsFromFile(File data) throws SQLException, FileNotFoundException {
         Scanner scanner = new Scanner(data);
 
         if (scanner.hasNext())  // skip the column headers
@@ -346,7 +347,7 @@ class Session {
 
     private void insertMarketAddressCity(String city, String marketAddress) throws SQLException {
         String sql = "INSERT INTO MarketAddressCity "
-                   + "VALUES " + convertToMysqlValuesForm(this.nextMarketId, city, marketAddress);
+                   + "VALUES " + convertToMysqlValuesForm(this.nextMarketId, marketAddress, city);
         statement.executeUpdate(sql);
     }
 
@@ -655,6 +656,117 @@ class Session {
                        + "VALUES " + convertToMysqlValuesForm(phoneNumber, nextMarketId);
             statement.executeUpdate(sql);
         }
+    }
+
+    void runQuery(String queryToRun) throws SQLException {
+        int queryNumber = Integer.parseInt(queryToRun);
+
+        switch (queryNumber) {
+            case 1: printListOfFarmerNamesWhoProduceMostForEachProduct();
+                    break;
+            case 2: printListOfFarmerNamesWhoSellMostForEachProduct();
+                    break;
+            case 3: printListOfFarmersWhoMakeMostMoney();
+                    break;
+            case 4: printListOfMarketsWithBiggestBudgetInEachCity();
+                    break;
+            case 5: printTotalNumberOfUsers();
+                    break;
+        }
+    }
+
+    void printListOfFarmerNamesWhoProduceMostForEachProduct() throws SQLException {
+        ResultSet resultSet = getIdQuantityProductName();
+
+
+    }
+
+    private ResultSet getIdQuantityProductName() throws SQLException {
+        String sql = "SELECT F.f_id, Pr.quantity, P.p_name " +
+                     "FROM Product P, Produces Pr, Farmer F " +
+                     "WHERE P.p_id = Pr.p_id AND F.f_id = Pr.f_id";
+
+        return statement.executeQuery(sql);
+    }
+
+    void printListOfFarmerNamesWhoSellMostForEachProduct() {
+
+    }
+
+    void printListOfFarmersWhoMakeMostMoney() throws SQLException {
+        HashMap<Integer, Double> idToTotalRevenue = new HashMap<>();
+        ResultSet resultSet = getTransactionsAndPrices();
+
+        while (resultSet.next()) {
+            int id = resultSet.getInt(1);
+            double revenueFromItem = resultSet.getDouble(3) * resultSet.getInt(2);
+
+            if (idToTotalRevenue.containsKey(id)) {
+                double currentValue = idToTotalRevenue.get(id);
+                currentValue += revenueFromItem;
+                idToTotalRevenue.put(id, currentValue);
+            } else {
+                idToTotalRevenue.put(id, revenueFromItem);
+            }
+        }
+
+        int key = Collections.max(idToTotalRevenue.entrySet(), Map.Entry.comparingByValue()).getKey();
+
+        printFarmerNameLastNameWithId(key);
+    }
+
+    ResultSet getTransactionsAndPrices() throws SQLException {
+       String sql = "SELECT F.f_id, T.amount_sold, R.price " +
+                    "FROM Transaction T, Registers R, Farmer F2, Farmer F " +
+                    "WHERE T.f_id = R.f_id AND T.p_id = R.p_id " +
+                    "AND R.f_id = F2.f_id AND F.f_id = F2.f_id " +
+                    "AND F2.f_id = F.f_id ORDER BY f_id";
+
+       return statement.executeQuery(sql);
+    }
+
+    void printFarmerNameLastNameWithId(int farmerId) throws SQLException {
+        String sql = "SELECT F.f_name, F.f_last_name " +
+                     "FROM Farmer F " +
+                     "WHERE f_id = " + farmerId;
+
+        ResultSet resultSet = statement.executeQuery(sql);
+
+        while (resultSet.next())
+            System.out.println(resultSet.getString(1) + ";" + resultSet.getString(2));
+    }
+
+    void printListOfMarketsWithBiggestBudgetInEachCity() throws SQLException {
+        String sql = "SELECT A.city, M.m_name " +
+                     "FROM Market M, MarketAddressCity A " +
+                     "WHERE M.m_id = A.m_id " +
+                     "AND NOT EXISTS(SELECT *" +
+                                    "FROM Market M2, MarketAddressCity A2 " +
+                                    "WHERE M2.m_id <> M.m_id AND M2.m_id = A2.m_id " +
+                                    "AND A2.city = A.city AND M2.budget > M.budget)";
+
+        ResultSet resultSet = statement.executeQuery(sql);
+
+        while (resultSet.next()) {
+            System.out.println(resultSet.getString(1) + ";" + resultSet.getString(2));
+        }
+    }
+
+    void printTotalNumberOfUsers() throws SQLException {
+        int numberOfFarmers = getNumberOfRowsInTable("Farmer");
+        int numberOfMarkets = getNumberOfRowsInTable("Market");
+
+        int numberOfUsers = numberOfFarmers + numberOfMarkets;
+        System.out.println("Total number of users is: " + numberOfUsers);
+    }
+
+    private void createTables() {
+
+    }
+
+
+    private <T> void createTable(String tableName, T... columns) {
+
     }
 }
 
