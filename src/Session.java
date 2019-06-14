@@ -1,7 +1,5 @@
-import javax.xml.transform.Result;
 import java.io.File;
 import java.io.FileNotFoundException;
-import java.security.Key;
 import java.sql.*;
 import java.util.*;
 
@@ -500,7 +498,10 @@ class Session {
     }
 
     void addToDatabase(String secondWord, String values) throws SQLException {
-        String tableName = secondWord.substring(0, secondWord.length() - 1);
+        String tableName = secondWord.substring(0, secondWord.length());
+
+        if (secondWord.charAt(secondWord.length() - 1) == 's')
+            tableName = secondWord.substring(0, secondWord.length() - 1);
 
         if (tableName.equalsIgnoreCase("FARMER"))
             addFarmers(values);
@@ -522,10 +523,10 @@ class Session {
 
                 String name = valuesSeparated[0];
                 String lastName = valuesSeparated[1];
-                String zipCode = valuesSeparated[2];
-                String city = valuesSeparated[3];
-                String[] phoneNumbers = valuesSeparated[4].split(";");
-                String[] emails = valuesSeparated[5].split(";");
+                String zipCode = valuesSeparated[3];
+                String city = valuesSeparated[4];
+                String[] phoneNumbers = valuesSeparated[5].split(";");
+                String[] emails = valuesSeparated[6].split(";");
 
                 farmerIds.add(nextFarmerId + 1);
 
@@ -676,21 +677,135 @@ class Session {
     }
 
     void printListOfFarmerNamesWhoProduceMostForEachProduct() throws SQLException {
-        ResultSet resultSet = getIdQuantityProductName();
+        ArrayList<Integer> quantity = new ArrayList<>();
+        ArrayList<String> f_name = new ArrayList<>();
+        ArrayList<String> p_name = new ArrayList<>();
 
+        String sql = "SELECT F.f_name, P.p_name, Pr.quantity " +
+                     "FROM Farmer F, Produces Pr, Product P " +
+                     "WHERE F.f_id = Pr.f_id AND Pr.p_id = P.p_id " +
+                     "ORDER BY P.p_name DESC ";
 
+        ResultSet resultSet = statement.executeQuery(sql);
+
+        while (resultSet.next()) {
+            String farmerName = resultSet.getString(1);
+            String productName = resultSet.getString(2);
+            int qt = resultSet.getInt(3);
+
+            f_name.add(farmerName);
+            p_name.add(productName);
+            quantity.add(qt);
+        }
+
+        ArrayList<String> names = new ArrayList<>();
+        ArrayList<Integer> quantities = new ArrayList<>();
+
+        String prevName = p_name.get(0);
+        for (int i = 0; i < quantity.size(); i++) {
+            String name = p_name.get(i);
+
+            names.add(f_name.get(i));
+            quantities.add(quantity.get(i));
+
+            if (!name.equals(prevName) || i == quantity.size() - 1) {
+                Set<String> maxNames = findNameOfFarmerWhoProducesMostForAProduct(names, quantities);
+                System.out.print(prevName + "; ");
+                for (String maxName : maxNames) {
+                    System.out.print(maxName + "; " + getLastNameWithName(maxName) + "|");
+                }
+                names.clear();
+                quantities.clear();
+            }
+
+            prevName = p_name.get(i);
+        }
     }
 
-    private ResultSet getIdQuantityProductName() throws SQLException {
-        String sql = "SELECT F.f_id, Pr.quantity, P.p_name " +
-                     "FROM Product P, Produces Pr, Farmer F " +
-                     "WHERE P.p_id = Pr.p_id AND F.f_id = Pr.f_id";
+    Set<String> findNameOfFarmerWhoProducesMostForAProduct(List<String> names, List<Integer> quantities) {
+        HashMap<String, Integer> namesToQuantities = new HashMap<>();
 
-        return statement.executeQuery(sql);
+        for (int i = 0; i < quantities.size(); i++) {
+            String name = names.get(i);
+            int quantity = quantities.get(i);
+            if (namesToQuantities.containsKey(name)) {
+                int currentValue = namesToQuantities.get(name);
+                currentValue += quantity;
+                namesToQuantities.put(names.get(i), currentValue);
+            } else {
+                namesToQuantities.put(name, quantity);
+            }
+        }
+
+        int max = Collections.max(namesToQuantities.entrySet(), Map.Entry.comparingByValue()).getValue();
+
+        return getKeysByValue(namesToQuantities, max);
     }
 
-    void printListOfFarmerNamesWhoSellMostForEachProduct() {
+    public static <T, E> Set<T> getKeysByValue(Map<T, E> map, E value) {
+        Set<T> keys = new HashSet<T>();
+        for (Map.Entry<T, E> entry : map.entrySet()) {
+            if (Objects.equals(value, entry.getValue())) {
+                keys.add(entry.getKey());
+            }
+        }
+        return keys;
+    }
 
+    private String getLastNameWithName(String farmerName) throws SQLException {
+        String sql = "SELECT Farmer.f_last_name "
+                    + "FROM Farmer "
+                    + "WHERE Farmer.f_name = " + stringify(farmerName);
+        ResultSet resultSet = this.statement.executeQuery(sql);
+
+        resultSet.next();
+        return resultSet.getString(1);
+    }
+
+    void printListOfFarmerNamesWhoSellMostForEachProduct() throws SQLException {
+        ArrayList<Integer> quantity = new ArrayList<>();
+        ArrayList<String> f_name = new ArrayList<>();
+        ArrayList<String> p_name = new ArrayList<>();
+
+        String sql = "SELECT F.f_name, P.p_name, T.amount_sold " +
+                     "FROM Farmer F, Transaction T, Product P " +
+                     "WHERE F.f_id = T.f_id AND T.p_id = P.p_id " +
+                     "ORDER BY P.p_name DESC";
+
+        ResultSet resultSet = statement.executeQuery(sql);
+
+        while (resultSet.next()) {
+            String farmerName = resultSet.getString(1);
+            String productName = resultSet.getString(2);
+            int qt = resultSet.getInt(3);
+
+            f_name.add(farmerName);
+            p_name.add(productName);
+            quantity.add(qt);
+        }
+
+        ArrayList<String> names = new ArrayList<>();
+        ArrayList<Integer> quantities = new ArrayList<>();
+
+        String prevName = p_name.get(0);
+        for (int i = 0; i < quantity.size(); i++) {
+            String name = p_name.get(i);
+
+            names.add(f_name.get(i));
+            quantities.add(quantity.get(i));
+
+            if (!name.equals(prevName) || i == quantity.size() - 1) {
+                Set<String> maxNames = findNameOfFarmerWhoProducesMostForAProduct(names, quantities);
+                System.out.print(prevName + "; ");
+                for (String maxName : maxNames) {
+                    System.out.print(maxName + "; " + getLastNameWithName(maxName) + "|");
+                }
+                names.clear();
+                quantities.clear();
+            }
+
+            prevName = p_name.get(i);
+        }
     }
 
     void printListOfFarmersWhoMakeMostMoney() throws SQLException {
@@ -758,15 +873,6 @@ class Session {
 
         int numberOfUsers = numberOfFarmers + numberOfMarkets;
         System.out.println("Total number of users is: " + numberOfUsers);
-    }
-
-    private void createTables() {
-
-    }
-
-
-    private <T> void createTable(String tableName, T... columns) {
-
     }
 }
 
